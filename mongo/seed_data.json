@@ -1,0 +1,47 @@
+{
+  "groups": [
+    { "name": "Apartment A" },
+    { "name": "Apartment B" }
+  ],
+  "roommates": [
+    { "name": "Alissa",   "group_name": "Apartment A", "rent_share": 1200 },
+    { "name": "Reece",    "group_name": "Apartment A", "rent_share": 900 },
+    { "name": "Khusboo",  "group_name": "Apartment A", "rent_share": 900 },
+
+    { "name": "JM",       "group_name": "Apartment B", "rent_share": 1500 },
+    { "name": "Majo",     "group_name": "Apartment B", "rent_share": 1300 }
+  ],
+  "supplies": [
+    {
+      "item": "Paper Towels",
+      "group_name": "Apartment A",
+      "last_bought": "2025-11-20",
+      "avg_days_between": 10
+    },
+    {
+      "item": "Toilet Paper",
+      "group_name": "Apartment A",
+      "last_bought": "2025-11-05",
+      "avg_days_between": 12
+    },
+    {
+      "item": "Dish Soap",
+      "group_name": "Apartment B",
+      "last_bought": "2025-11-25",
+      "avg_days_between": 20
+    }
+  ],
+  "rent": [
+    {
+      "group_name": "Apartment A",
+      "total_rent": 3000,
+      "due_date": "2025-12-05"
+    },
+    {
+      "group_name": "Apartment B",
+      "total_rent": 2800,
+      "due_date": "2025-12-10"
+    }
+  ]
+}
+
