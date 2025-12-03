@@ -1,0 +1,6 @@
+flask
+pymongo
+pytest
+coverage
+PyJWT
+cryptography
