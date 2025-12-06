@@ -137,3 +137,44 @@ def mark_chore_complete(db, chore_id):
     db.chores.insert_one(new_chore)
     
     return {"message": f"Chore finished! Next up: {next_person}"}
+
+def get_group_calendar(db, group_name):
+    from datetime import datetime
+
+    events = []
+
+    rent_data = analyze_rent(db, group_name)
+    if rent_data and "due_date" in rent_data:
+        events.append({
+            "title": f"Rent Due (${rent_data['total_rent']})",
+            "date": rent_data["due_date"],
+            "type": "bill",
+            "assignee": "Everyone",
+            "status": rent_data.get("status", "pending")
+        })
+        
+    supplies_data = analyze_supplies(db, group_name)
+
+    for item in supplies_data.get("low_items", []):
+         events.append({
+            "title": f"Buy {item['item']}",
+            "date": datetime.now().strftime("%Y-%m-%d"), 
+            "type": "shopping",
+            "assignee": "Any",
+            "status": "URGENT"
+        })
+
+    chores_data = analyze_chores(db, group_name)
+    for c in chores_data.get("chores", []):
+        if c["status"] != "completed":
+            events.append({
+                "title": c["task"],
+                "date": c["due_date"],
+                "type": "chore",
+                "assignee": c["assigned_to"],
+                "status": c["status"]
+            })
+
+    events.sort(key=lambda x: x["date"])
+    
+    return events
