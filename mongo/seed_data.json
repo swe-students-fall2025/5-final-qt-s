@@ -42,6 +42,26 @@
       "total_rent": 2800,
       "due_date": "2025-12-10"
     }
+  ],
+  "chores": [
+    {
+      "task": "Take out Trash",
+      "group_name": "Apartment A",
+      "assigned_to": "Reece",
+      "status": "pending",
+      "due_date": "2025-12-07",
+      "frequency_days": 3,
+      "is_recurring": true
+    },
+    {
+      "task": "Clean Bathroom",
+      "group_name": "Apartment B",
+      "assigned_to": "Majo",
+      "status": "pending",
+      "due_date": "2025-12-08",
+      "frequency_days": 7,
+      "is_recurring": true
+    }
   ]
 }
 

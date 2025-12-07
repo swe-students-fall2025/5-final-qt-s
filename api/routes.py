@@ -6,6 +6,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import os
 from datetime import datetime, timedelta
+from service.logic import analyze_chores, mark_chore_complete
+from service.logic import analyze_chores, mark_chore_complete, get_group_calendar
 
 routes = Blueprint("routes", __name__)
 
@@ -243,3 +245,24 @@ def remove_roommate(group_id, user_id):
     except Exception:
         return jsonify({"error": "Invalid group ID or user ID"}), 400
 
+
+
+@app.route("/api/groups/<group_name>/chores", methods=["GET"])
+def get_chores(group_name):
+    data = analyze_chores(db, group_name)
+    return jsonify(data), 200
+
+@app.route("/api/chores/<chore_id>/complete", methods=["POST"])
+def complete_chore_route(chore_id):
+    result = mark_chore_complete(db, chore_id)
+    if "error" in result:
+        return jsonify(result), 404
+    return jsonify(result), 200
+
+@app.route("/api/groups/<group_name>/calendar", methods=["GET"])
+def get_calendar_route(group_name):
+    try:
+        events = get_group_calendar(db, group_name)
+        return jsonify(events), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
