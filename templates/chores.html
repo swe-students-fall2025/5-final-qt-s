@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Chores — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Chore Board</h2>
+
+  <div class="card" style="margin-bottom:12px;">
+    <div class="row">
+      <button class="btn" onclick="openAddChoreModal()">Add chore</button>
+      <div class="right small text-muted">Group: <span id="groupNameDisplay"></span></div>
+    </div>
+  </div>
+
+  <div id="choresList"></div>
+
+  <!-- Add Chore Modal -->
+  <div id="modal-add-chore-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>Add Chore</h3>
+      <div class="input-field"><label class="small">Task</label><input id="add_task" class="input"></div>
+      <div class="input-field"><label class="small">Assigned To</label><input id="add_assigned" class="input" placeholder="name"></div>
+      <div class="input-field"><label class="small">Due (YYYY-MM-DD)</label><input id="add_due" class="input" placeholder="2025-12-01"></div>
+      <div class="input-field"><label class="small"><input type="checkbox" id="add_recurring"> Recurring</label></div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-add-chore')">Cancel</button>
+        <button class="btn" onclick="submitAddChore()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Complete Modal -->
+  <div id="modal-confirm-complete-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>Confirm completion</h3>
+      <div id="confirmText" class="small text-muted">Are you sure?</div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-confirm-complete')">Cancel</button>
+        <button class="btn" id="confirmCompleteBtn">Yes, mark complete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Chore Modal -->
+  <div id="modal-edit-chore-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>Edit Chore</h3>
+      <div class="input-field"><label class="small">Task</label><input id="edit_task" class="input"></div>
+      <div class="input-field"><label class="small">Assigned To</label><input id="edit_assigned" class="input"></div>
+      <div class="input-field"><label class="small">Due</label><input id="edit_due" class="input"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-edit-chore')">Cancel</button>
+        <button class="btn" onclick="submitEditChore()">Save</button>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("groupNameDisplay").innerText = getGroupName() || "(no group)";
+
+let choresCache = [];
+async function loadChores() {
+  const groupName = getGroupName();
+  if (!groupName) { document.getElementById("choresList").innerHTML = "<div class='card small'>Select a group first (My Groups)</div>"; return; }
+  try {
+    const data = await apiGet(`/groups/${groupName}/chores`);
+    choresCache = data.chores || [];
+    renderChores();
+  } catch (err) {
+    showToast(err.message || "Could not load chores", "error");
+  }
+}
+
+function renderChores() {
+  const container = document.getElementById("choresList");
+  if (!choresCache.length) {
+    container.innerHTML = "<div class='card small text-muted'>No chores</div>";
+    return;
+  }
+  container.innerHTML = choresCache.map(c => `
+    <div class="chore-row">
+      <div>
+        <div><b>${c.task}</b></div>
+        <div class="small text-muted">Assigned: ${c.assigned_to} • Due: ${c.due_date}</div>
+      </div>
+      <div class="row">
+        <div class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : ''}">${c.status}</div>
+        <button class="btn secondary" style="margin-left:8px;" onclick="openEditChore('${c.id}')">Edit</button>
+        <button class="btn" style="margin-left:8px;" onclick="confirmComplete('${c.id}')">Complete</button>
+      </div>
+    </div>
+  `).join("");
+}
+
+function openAddChoreModal() {
+  setModalField('modal-add-chore', '#add_task', '');
+  setModalField('modal-add-chore', '#add_assigned', '');
+  setModalField('modal-add-chore', '#add_due', '');
+  document.getElementById('add_recurring').checked = false;
+  openModal('modal-add-chore');
+}
+
+async function submitAddChore() {
+  const task = document.getElementById('add_task').value.trim();
+  const assigned = document.getElementById('add_assigned').value.trim();
+  const due = document.getElementById('add_due').value.trim();
+  const is_recurring = document.getElementById('add_recurring').checked;
+  if (!task || !due) return showToast("Task and due date required", "error");
+  const groupName = getGroupName();
+  try {
+    // backend route expected: POST /api/groups/<group_name>/chores
+    await apiPost(`/groups/${groupName}/chores`, { task, assigned_to: assigned, due_date: due, is_recurring, group_name: groupName });
+    closeModal('modal-add-chore');
+    showToast("Chore added", "success");
+    loadChores();
+  } catch (err) {
+    showToast(err.message || "Add failed", "error");
+  }
+}
+
+/* Confirm complete flow */
+let pendingCompleteId = null;
+function confirmComplete(id) {
+  pendingCompleteId = id;
+  document.getElementById("confirmText").innerText = "Mark this chore as complete?";
+  const btn = document.getElementById("confirmCompleteBtn");
+  btn.onclick = async () => {
+    try {
+      const res = await apiPost(`/chores/${pendingCompleteId}/complete`, {});
+      closeModal('modal-confirm-complete');
+      showToast(res.message || "Completed", "success");
+      loadChores();
+    } catch (err) {
+      showToast(err.message || "Complete failed", "error");
+    }
+  };
+  openModal('modal-confirm-complete');
+}
+
+/* Edit flow */
+let editingId = null;
+function openEditChore(id) {
+  const c = choresCache.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+  setModalField('modal-edit-chore', '#edit_task', c.task);
+  setModalField('modal-edit-chore', '#edit_assigned', c.assigned_to);
+  setModalField('modal-edit-chore', '#edit_due', c.due_date);
+  openModal('modal-edit-chore');
+}
+
+async function submitEditChore() {
+  const task = document.getElementById('edit_task').value.trim();
+  const assigned = document.getElementById('edit_assigned').value.trim();
+  const due = document.getElementById('edit_due').value.trim();
+  if (!task || !due) return showToast("Task and due date required", "error");
+  try {
+    await apiPatch(`/chores/${editingId}`, { task, assigned_to: assigned, due_date: due });
+    closeModal('modal-edit-chore');
+    showToast("Updated", "success");
+    loadChores();
+  } catch (err) {
+    showToast(err.message || "Update failed", "error");
+  }
+}
+
+loadChores();
+</script>
+{% endblock %}

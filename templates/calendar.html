@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Calendar — Roommate Manager{% endblock %}
+{% block head %}
+  <!-- FullCalendar CSS from CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+  <h2>Calendar</h2>
+  <div id="calendarCard" class="card" style="padding:12px;">
+    <div id="calendar"></div>
+  </div>
+
+  <!-- Add Event Modal -->
+  <div id="modal-add-event-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>Add Event</h3>
+      <div class="input-field"><label class="small">Title</label><input id="evt_title" class="input"></div>
+      <div class="input-field"><label class="small">Date (YYYY-MM-DD)</label><input id="evt_date" class="input"></div>
+      <div class="input-field"><label class="small">Type</label>
+        <select id="evt_type" class="input">
+          <option value="chore">Chore</option>
+          <option value="bill">Bill</option>
+          <option value="shopping">Shopping</option>
+          <option value="event">Event</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-add-event')">Cancel</button>
+        <button class="btn" onclick="submitAddEvent()">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Event Modal -->
+  <div id="modal-view-event-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3 id="viewTitle"></h3>
+      <div id="viewBody" class="small text-muted"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-view-event')">Close</button>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+{% block scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+  <script>
+    function transformEventsForCalendar(raw) {
+      return raw.map(ev => ({
+        title: ev.title,
+        start: ev.date,
+        display: 'block',
+        backgroundColor: ev.type === 'bill' ? '#f6c6c6' : ev.type === 'shopping' ? '#fff4ce' : '#d6f5e3',
+        extendedProps: ev
+      }));
+    }
+
+    async function fetchEvents(start, end) {
+      const groupName = getGroupName();
+      if (!groupName) return [];
+      const raw = await apiGet(`/groups/${groupName}/calendar`);
+      return transformEventsForCalendar(raw || []);
+    }
+
+    const calendar = initFullCalendar('calendar', (start, end) => fetchEvents(start, end));
+
+    window.addEventListener('calendarEventClick', (e) => {
+      const ev = e.detail;
+      document.getElementById('viewTitle').innerText = ev.title || 'Event';
+      document.getElementById('viewBody').innerHTML = `
+        <div>Date: ${ev.date || ''}</div>
+        <div>Type: ${ev.type || ''}</div>
+        <div>Assigned: ${ev.assignee || ''}</div>
+        <div>Status: ${ev.status || ''}</div>
+      `;
+      openModal('modal-view-event');
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn';
+    addBtn.innerText = 'Add Event';
+    addBtn.onclick = () => openModal('modal-add-event');
+    document.querySelector('.header').appendChild(addBtn);
+
+    async function submitAddEvent() {
+      const title = document.getElementById('evt_title').value;
+      const date = document.getElementById('evt_date').value;
+      const type = document.getElementById('evt_type').value;
+      const groupName = getGroupName();
+      if (!title || !date || !groupName) return showToast("Missing fields", "error");
+      try {
+        await apiPost(`/groups/${groupName}/events`, { title, start_datetime: date, end_datetime: date, type, group_name: groupName });
+        showToast("Event created", "success");
+        closeModal('modal-add-event');
+        if (calendar) calendar.refetchEvents();
+      } catch (err) {
+        showToast(err.message || "Create failed", "error");
+      }
+    }
+  </script>
+{% endblock %}

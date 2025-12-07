@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Groups — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Your groups</h2>
+
+  <div class="card">
+    <div id="groupsList" class="grid"></div>
+    <div class="space"></div>
+    <h4>Create a new group</h4>
+    <div class="input-field"><input id="newGroupName" class="input" placeholder="Group name"></div>
+    <button class="btn" id="createGroupBtn">Create group</button>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadGroups() {
+  const userId = sessionStorage.getItem("user_id");
+  if (!userId) { showToast("Please login", "error"); window.location.href="/login"; return; }
+  try {
+    const groups = await apiGet(`/groups?roommate_id=${userId}`);
+    const container = document.getElementById("groupsList");
+    if (!groups || !groups.length) {
+      container.innerHTML = "<div class='small text-muted'>No groups found. Create one below.</div>";
+      return;
+    }
+    container.innerHTML = groups.map(g => `
+      <div class="card">
+        <h4>${g.name}</h4>
+        <div class="small text-muted">Created by: ${g.created_by || "—"}</div>
+        <div class="space"></div>
+        <div class="row">
+          <button class="btn" onclick="enterGroup('${g.name}')">Enter</button>
+          <button class="btn secondary" onclick="openAddRoommateModal('${g._id}', '${g.name}')">Add roommate</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    showToast(err.message || "Could not load groups", "error");
+  }
+}
+function enterGroup(name) {
+  setGroupName(name);
+  window.location.href = "/home";
+}
+document.getElementById("createGroupBtn").addEventListener("click", async () => {
+  const name = document.getElementById("newGroupName").value.trim();
+  const userId = sessionStorage.getItem("user_id");
+  if (!name || !userId) return showToast("Group name required", "error");
+  try {
+    await apiPost("/groups", { name, created_by: userId });
+    showToast("Group created", "success");
+    loadGroups();
+  } catch (err) {
+    showToast(err.message || "Create failed", "error");
+  }
+});
+function openAddRoommateModal(groupId, groupName) {
+  const email = prompt("Enter roommate's user id to add (or email):");
+  if (!email) return;
+  apiPost(`/groups/${groupId}/roommates`, { user_id: email })
+    .then(()=> { showToast("Roommate added", "success"); loadGroups(); })
+    .catch(err=> showToast(err.message || "Add failed", "error"));
+}
+loadGroups();
+</script>
+{% endblock %}

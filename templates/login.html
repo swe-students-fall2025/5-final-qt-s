@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Login — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Sign in</h2>
+  <div class="card">
+    <div class="input-field">
+      <label class="small">Username or Email</label>
+      <input id="username" class="input" placeholder="username or email">
+    </div>
+    <div class="input-field">
+      <label class="small">Password</label>
+      <input id="password" type="password" class="input" placeholder="password">
+    </div>
+    <div class="space"></div>
+    <div class="row">
+      <button class="btn" id="loginBtn">Sign in</button>
+      <button class="btn secondary" onclick="window.location.href='/register'">Register</button>
+      <div class="right text-muted">Session stored in sessionStorage</div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  if (!username || !password) return showToast("Enter username and password", "error");
+  try {
+    const res = await apiPost("/login", { username, password });
+    if (res && res.token) {
+      setToken(res.token);
+      sessionStorage.setItem("user_id", res.user_id || "");
+      showToast("Logged in", "success");
+      const g = getGroupName();
+      window.location.href = g ? "/home" : "/my_groups";
+    } else {
+      showToast("Login returned unexpected response", "error");
+    }
+  } catch (err) {
+    showToast(err.message || "Login failed", "error");
+  }
+});
+</script>
+{% endblock %}

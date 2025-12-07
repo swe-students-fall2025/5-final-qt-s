@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Dashboard</h2>
+
+  <div id="no-group" class="card" style="display:none;">
+    <div class="small">No group selected. Go to <a href="/my_groups">My Groups</a> and choose a group.</div>
+  </div>
+
+  <div id="main-grid" class="grid" style="display:none;">
+    <div class="card">
+      <h4>Rent Status</h4>
+      <div id="rentBox" class="small text-muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h4>Supplies</h4>
+      <div id="supplyBox" class="small text-muted">Loading…</div>
+    </div>
+
+    <div class="card">
+      <h4>Next Chores</h4>
+      <div id="choreBox" class="small text-muted">Loading…</div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+const groupName = getGroupName();
+if (!groupName) {
+  document.getElementById("no-group").style.display = "block";
+} else {
+  document.getElementById("main-grid").style.display = "grid";
+  async function loadAll() {
+    try {
+      // Rent
+      const rent = await apiGet(`/rent-status?group_name=${groupName}`);
+      if (rent.error) document.getElementById("rentBox").innerText = rent.error;
+      else {
+        document.getElementById("rentBox").innerHTML = `
+          <div>Total: $${rent.total_rent}</div>
+          <div>Due: ${rent.due_date}</div>
+          <div>Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : rent.status === 'OK' ? 'ok' : 'warn'}">${rent.status}</span></div>
+          <div class="small">${rent.notification || ''}</div>
+        `;
+      }
+
+      // Supplies
+      const supplies = await apiGet(`/supplies-status?group_name=${groupName}`);
+      const sBox = document.getElementById("supplyBox");
+      if (supplies && supplies.low_items && supplies.low_items.length) {
+        sBox.innerHTML = supplies.low_items.map(i => `<div class="label warn">${i.item} – LOW SOON</div>`).join(" ");
+      } else {
+        sBox.innerHTML = `<div class="small text-muted">All supplies look good</div>`;
+      }
+
+      // Chores
+      const chores = await apiGet(`/groups/${groupName}/chores`);
+      const cBox = document.getElementById("choreBox");
+      if (!chores || !chores.chores || chores.chores.length===0) {
+        cBox.innerHTML = `<div class="small text-muted">No chores scheduled</div>`;
+      } else {
+        cBox.innerHTML = chores.chores.slice(0,5).map(c => `
+          <div class="chore-row">
+            <div class="chore-meta">
+              <div><b>${c.task}</b><div class="small text-muted">Assigned: ${c.assigned_to}</div></div>
+            </div>
+            <div class="right">
+              <div class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : ''}">${c.status}</div>
+            </div>
+          </div>
+        `).join("");
+      }
+
+    } catch (err) {
+      showToast(err.message || "Could not load dashboard", "error");
+    }
+  }
+  loadAll();
+}
+</script>
+{% endblock %}
