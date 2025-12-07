@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Bills — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Rent & Bills</h2>
+
+  <div id="billBox"></div>
+
+  <!-- Edit rent modal -->
+  <div id="modal-edit-rent-backdrop" class="modal-backdrop">
+    <div class="modal">
+      <h3>Edit Rent</h3>
+      <div class="input-field"><label class="small">Total Rent ($)</label><input id="editRentAmount" class="input" type="number"></div>
+      <div class="input-field"><label class="small">Due date (YYYY-MM-DD)</label><input id="editRentDue" class="input"></div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-edit-rent')">Cancel</button>
+        <button class="btn" onclick="submitEditRent()">Save</button>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function loadRent() {
+  const g = getGroupName();
+  if (!g) { document.getElementById("billBox").innerHTML = "<div class='card small'>Select a group first</div>"; return; }
+  try {
+    const rent = await apiGet(`/rent-status?group_name=${g}`);
+    if (rent.error) return document.getElementById("billBox").innerText = rent.error;
+    document.getElementById("billBox").innerHTML = `
+      <div class="card">
+        <h4>Rent</h4>
+        <div>Total: $${rent.total_rent}</div>
+        <div>Due: ${rent.due_date}</div>
+        <div>Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : ''}">${rent.status}</span></div>
+        <div class="space"></div>
+        <button class="btn" onclick="openEditRentModal('${rent.total_rent}','${rent.due_date}')">Edit Rent</button>
+      </div>
+    `;
+  } catch (err) { showToast(err.message || "Could not load rent", "error"); }
+}
+
+function openEditRentModal(amount, due) {
+  setModalField('modal-edit-rent', '#editRentAmount', amount);
+  setModalField('modal-edit-rent', '#editRentDue', due);
+  openModal('modal-edit-rent');
+}
+
+async function submitEditRent() {
+  const amount = document.getElementById('editRentAmount').value;
+  const due = document.getElementById('editRentDue').value;
+  const g = getGroupName();
+  if (!g) return showToast("No group selected", "error");
+  try {
+    await apiPatch(`/groups/${g}/rent`, { total_rent: amount, due_date: due });
+    closeModal('modal-edit-rent');
+    showToast("Rent updated", "success");
+    loadRent();
+  } catch (err) {
+    showToast(err.message || "Update failed", "error");
+  }
+}
+
+loadRent();
+</script>
+{% endblock %}

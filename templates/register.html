@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Register — Roommate Manager{% endblock %}
+{% block content %}
+  <h2>Create account</h2>
+  <div class="card">
+    <div class="input-field"><label class="small">Username</label><input id="username" class="input"></div>
+    <div class="input-field"><label class="small">Email</label><input id="email" class="input"></div>
+    <div class="input-field"><label class="small">Password</label><input id="password" type="password" class="input"></div>
+    <div class="space"></div>
+    <div class="row">
+      <button class="btn" id="registerBtn">Create account</button>
+      <div class="right"><a href="/login">Sign in</a></div>
+    </div>
+  </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById("registerBtn").addEventListener("click", async () => {
+  const username = document.getElementById("username").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  if (!username || !email || !password) return showToast("Complete all fields", "error");
+  try {
+    const resp = await apiPost("/users", { username, email, password });
+    showToast("Registered — please log in", "success");
+    setTimeout(()=> window.location.href = "/login", 900);
+  } catch (err) {
+    showToast(err.message || "Registration failed", "error");
+  }
+});
+</script>
+{% endblock %}

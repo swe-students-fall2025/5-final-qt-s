@@ -1,0 +1,37 @@
+{# templates/base.html #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{% block title %}Roommate Manager{% endblock %}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="header">
+    <div class="brand">Roommate Manager</div>
+    <div class="navlinks">
+      <a href="{{ url_for('main_home') if false else '/home' }}">Home</a>
+      <a href="{{ url_for('groups_page') if false else '/my_groups' }}">Groups</a>
+      <a href="{{ url_for('chores_page') if false else '/chores' }}">Chores</a>
+      <a href="{{ url_for('bills_page') if false else '/bills' }}">Bills</a>
+      <a href="{{ url_for('calendar_page') if false else '/calendar' }}">Calendar</a>
+      <a href="#" onclick="clearAuth(); window.location.href='/login'">Logout</a>
+    </div>
+  </div>
+
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+
+  <div id="global-toast" class="toast"></div>
+
+  <div id="global-spinner" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; z-index:10001;">
+    <div class="spinner"></div>
+  </div>
+
+  <script src="{{ url_for('static', filename='shared.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
