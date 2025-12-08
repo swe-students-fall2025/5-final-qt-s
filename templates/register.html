@@ -1,32 +1,53 @@
 {% extends "base.html" %}
 {% block title %}Register — Roommate Manager{% endblock %}
 {% block content %}
-  <h2>Create account</h2>
-  <div class="card">
-    <div class="input-field"><label class="small">Username</label><input id="username" class="input"></div>
-    <div class="input-field"><label class="small">Email</label><input id="email" class="input"></div>
-    <div class="input-field"><label class="small">Password</label><input id="password" type="password" class="input"></div>
+  <div class="auth-card">
+    <h2>Create Your Account</h2>
+    <div class="input-field">
+      <label>Username</label>
+      <input id="username" class="input" placeholder="Choose a username" autocomplete="username">
+    </div>
+    <div class="input-field">
+      <label>Email</label>
+      <input id="email" type="email" class="input" placeholder="Enter your email address" autocomplete="email">
+    </div>
+    <div class="input-field">
+      <label>Password</label>
+      <input id="password" type="password" class="input" placeholder="Create a secure password" autocomplete="new-password">
+    </div>
     <div class="space"></div>
     <div class="row">
-      <button class="btn" id="registerBtn">Create account</button>
-      <div class="right"><a href="/login">Sign in</a></div>
+      <button class="btn" id="registerBtn" style="flex: 1;">Create Account</button>
+    </div>
+    <div class="text-center" style="margin-top: 1.5rem;">
+      <span class="text-muted">Already have an account? </span>
+      <a href="/login" style="color: var(--primary); text-decoration: none; font-weight: 600;">Sign in here</a>
     </div>
   </div>
 {% endblock %}
 {% block scripts %}
 <script>
-document.getElementById("registerBtn").addEventListener("click", async () => {
+const registerHandler = async () => {
+  const btn = document.getElementById("registerBtn");
   const username = document.getElementById("username").value.trim();
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
   if (!username || !email || !password) return showToast("Complete all fields", "error");
+  
+  setButtonLoading(btn, true);
   try {
     const resp = await apiPost("/users", { username, email, password });
     showToast("Registered — please log in", "success");
     setTimeout(()=> window.location.href = "/login", 900);
   } catch (err) {
     showToast(err.message || "Registration failed", "error");
+    setButtonLoading(btn, false);
   }
+};
+
+document.getElementById("registerBtn").addEventListener("click", registerHandler);
+document.getElementById("password").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") registerHandler();
 });
 </script>
 {% endblock %}

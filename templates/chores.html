@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Chores — Roommate Manager{% endblock %}
 {% block content %}
+  <div class="container">
   <h2>Chore Board</h2>
 
   <div class="card" style="margin-bottom:12px;">
@@ -16,13 +17,31 @@
   <div id="modal-add-chore-backdrop" class="modal-backdrop">
     <div class="modal">
       <h3>Add Chore</h3>
-      <div class="input-field"><label class="small">Task</label><input id="add_task" class="input"></div>
-      <div class="input-field"><label class="small">Assigned To</label><input id="add_assigned" class="input" placeholder="name"></div>
-      <div class="input-field"><label class="small">Due (YYYY-MM-DD)</label><input id="add_due" class="input" placeholder="2025-12-01"></div>
-      <div class="input-field"><label class="small"><input type="checkbox" id="add_recurring"> Recurring</label></div>
+      <div class="input-field">
+        <label>Task</label>
+        <input id="add_task" class="input" placeholder="Enter task name">
+      </div>
+      <div class="input-field">
+        <label>Assigned To</label>
+        <input id="add_assigned" class="input" placeholder="Roommate name">
+      </div>
+      <div class="input-field">
+        <label>Due Date</label>
+        <input type="date" id="add_due" class="input">
+      </div>
+      <div class="input-field">
+        <label>Recurring?</label>
+        <select id="add_recurring" class="input">
+          <option value="">Not recurring</option>
+          <option value="daily">Every day</option>
+          <option value="weekly">Every week</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="monthly">Every month</option>
+        </select>
+      </div>
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-add-chore')">Cancel</button>
-        <button class="btn" onclick="submitAddChore()">Save</button>
+        <button class="btn" id="modal-add-chore-save-btn" onclick="submitAddChore()">Save</button>
       </div>
     </div>
   </div>
@@ -60,12 +79,29 @@ document.getElementById("groupNameDisplay").innerText = getGroupName() || "(no g
 let choresCache = [];
 async function loadChores() {
   const groupName = getGroupName();
-  if (!groupName) { document.getElementById("choresList").innerHTML = "<div class='card small'>Select a group first (My Groups)</div>"; return; }
+  const container = document.getElementById("choresList");
+  if (!groupName) { 
+    container.innerHTML = "<div class='card small'>Select a group first (My Groups)</div>"; 
+    return; 
+  }
+  
+  container.innerHTML = `
+    <div class="chore-row">
+      <div class="shimmer shimmer-title" style="width: 200px;"></div>
+      <div class="shimmer shimmer-button"></div>
+    </div>
+    <div class="chore-row">
+      <div class="shimmer shimmer-title" style="width: 200px;"></div>
+      <div class="shimmer shimmer-button"></div>
+    </div>
+  `;
+  
   try {
     const data = await apiGet(`/groups/${groupName}/chores`);
     choresCache = data.chores || [];
     renderChores();
   } catch (err) {
+    container.innerHTML = `<div class='card small'>Error: ${err.message || "Could not load chores"}</div>`;
     showToast(err.message || "Could not load chores", "error");
   }
 }
@@ -76,44 +112,76 @@ function renderChores() {
     container.innerHTML = "<div class='card small text-muted'>No chores</div>";
     return;
   }
-  container.innerHTML = choresCache.map(c => `
+  container.innerHTML = choresCache.map(c => {
+    const isCompleted = c.status === 'completed';
+    return `
     <div class="chore-row">
       <div>
         <div><b>${c.task}</b></div>
         <div class="small text-muted">Assigned: ${c.assigned_to} • Due: ${c.due_date}</div>
       </div>
       <div class="row">
-        <div class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : ''}">${c.status}</div>
-        <button class="btn secondary" style="margin-left:8px;" onclick="openEditChore('${c.id}')">Edit</button>
-        <button class="btn" style="margin-left:8px;" onclick="confirmComplete('${c.id}')">Complete</button>
+        <span class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : 'warn'}">${c.status}</span>
+        ${!isCompleted ? `<button class="btn secondary" style="margin-left:8px;" onclick="openEditChore('${c.id}')">Edit</button>` : ''}
+        ${!isCompleted ? `<button class="btn" style="margin-left:8px;" onclick="confirmComplete('${c.id}')">Complete</button>` : ''}
       </div>
     </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 function openAddChoreModal() {
   setModalField('modal-add-chore', '#add_task', '');
   setModalField('modal-add-chore', '#add_assigned', '');
   setModalField('modal-add-chore', '#add_due', '');
-  document.getElementById('add_recurring').checked = false;
+  document.getElementById('add_recurring').value = '';
+  // Reset button state when opening modal
+  const btn = document.getElementById('modal-add-chore-save-btn');
+  if (btn) setButtonLoading(btn, false);
   openModal('modal-add-chore');
 }
 
 async function submitAddChore() {
   const task = document.getElementById('add_task').value.trim();
   const assigned = document.getElementById('add_assigned').value.trim();
-  const due = document.getElementById('add_due').value.trim();
-  const is_recurring = document.getElementById('add_recurring').checked;
+  const due = document.getElementById('add_due').value;
+  const recurring = document.getElementById('add_recurring').value;
+  
   if (!task || !due) return showToast("Task and due date required", "error");
+  
   const groupName = getGroupName();
+  const btn = document.getElementById('modal-add-chore-save-btn');
+  
+  // Map recurring option to frequency_days
+  const frequencyMap = {
+    "daily": 1,
+    "weekly": 7,
+    "biweekly": 14,
+    "monthly": 30,
+    "": 0
+  };
+  
+  const is_recurring = recurring !== "";
+  const frequency_days = frequencyMap[recurring] || 0;
+  
+  if (!btn) return;
+  
+  setButtonLoading(btn, true);
   try {
-    // backend route expected: POST /api/groups/<group_name>/chores
-    await apiPost(`/groups/${groupName}/chores`, { task, assigned_to: assigned, due_date: due, is_recurring, group_name: groupName });
+    await apiPost(`/groups/${groupName}/chores`, { 
+      task, 
+      assigned_to: assigned, 
+      due_date: due, 
+      is_recurring,
+      frequency_days
+    });
+    setButtonLoading(btn, false); // Reset button state BEFORE closing modal
     closeModal('modal-add-chore');
     showToast("Chore added", "success");
     loadChores();
   } catch (err) {
     showToast(err.message || "Add failed", "error");
+    setButtonLoading(btn, false);
   }
 }
 
@@ -165,4 +233,5 @@ async function submitEditChore() {
 
 loadChores();
 </script>
+  </div>
 {% endblock %}

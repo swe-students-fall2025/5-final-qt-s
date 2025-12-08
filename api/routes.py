@@ -6,7 +6,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt
 import os
 from datetime import datetime, timedelta
-from service.logic import analyze_chores, mark_chore_complete
 from service.logic import analyze_chores, mark_chore_complete, get_group_calendar
 
 routes = Blueprint("routes", __name__)
@@ -143,6 +142,7 @@ def create_group():
     group = {
         "name": data["name"],
         "created_by": data["created_by"],
+        "created_by_username": creator.get("username", ""),  # Store username for easy display
         "description": data.get("description", ""),
         "roommates": [data["created_by"]],  # Creator is automatically added as roommate
         "created_at": data.get("created_at")
@@ -150,7 +150,10 @@ def create_group():
     
     result = db.groups.insert_one(group)
     saved = db.groups.find_one({"_id": result.inserted_id})
-    return jsonify(to_json(saved)), 201
+    saved_json = to_json(saved)
+    # Include username in response for display
+    saved_json["created_by_username"] = creator.get("username", "")
+    return jsonify(saved_json), 201
 
 @routes.route("/groups/<group_id>", methods=["GET"])
 def get_group(group_id):
@@ -179,7 +182,19 @@ def get_groups():
         query["roommates"] = roommate_id
     
     groups = list(db.groups.find(query))
-    return jsonify([to_json(g) for g in groups]), 200
+    groups_json = []
+    for g in groups:
+        group_json = to_json(g)
+        # If username not stored, look it up
+        if not group_json.get("created_by_username") and group_json.get("created_by"):
+            try:
+                creator = db.users.find_one({"_id": ObjectId(group_json["created_by"])})
+                if creator:
+                    group_json["created_by_username"] = creator.get("username", "")
+            except Exception:
+                pass
+        groups_json.append(group_json)
+    return jsonify(groups_json), 200
 
 @routes.route("/groups/<group_id>/roommates", methods=["POST"])
 def add_roommate(group_id):
@@ -247,22 +262,5 @@ def remove_roommate(group_id, user_id):
 
 
 
-@app.route("/api/groups/<group_name>/chores", methods=["GET"])
-def get_chores(group_name):
-    data = analyze_chores(db, group_name)
-    return jsonify(data), 200
-
-@app.route("/api/chores/<chore_id>/complete", methods=["POST"])
-def complete_chore_route(chore_id):
-    result = mark_chore_complete(db, chore_id)
-    if "error" in result:
-        return jsonify(result), 404
-    return jsonify(result), 200
-
-@app.route("/api/groups/<group_name>/calendar", methods=["GET"])
-def get_calendar_route(group_name):
-    try:
-        events = get_group_calendar(db, group_name)
-        return jsonify(events), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# Note: Routes using @app.route should be registered in app.py after blueprint import
+# to avoid circular imports. These are moved to app.py.

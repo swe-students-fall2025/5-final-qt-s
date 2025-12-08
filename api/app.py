@@ -3,9 +3,10 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from pymongo import MongoClient
 import os
 from service.logic import analyze_supplies, analyze_rent
+from api.utils import to_json
 
 # DB config
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://mongo:27017")
+MONGO_URL = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "main_db")
 
 client = MongoClient(MONGO_URL)
@@ -81,6 +82,50 @@ def rent_status():
         return {"error": "group_name required"}, 400
     results = analyze_rent(db, group_name)
     return jsonify(results)
+
+# Additional API routes that need app instance (from routes.py)
+from service.logic import analyze_chores, mark_chore_complete, get_group_calendar
+
+@app.route("/api/groups/<group_name>/chores", methods=["GET", "POST"])
+def chores_route(group_name):
+    if request.method == "GET":
+        data = analyze_chores(db, group_name)
+        return jsonify(data), 200
+    else:  # POST
+        data = request.json
+        required_fields = ["task", "due_date"]
+        if not all(field in data for field in required_fields):
+            return jsonify({"error": "Missing required fields: task, due_date"}), 400
+        
+        chore = {
+            "task": data["task"],
+            "assigned_to": data.get("assigned_to", ""),
+            "due_date": data["due_date"],
+            "group_name": group_name,
+            "status": "pending",
+            "is_recurring": data.get("is_recurring", False),
+            "frequency_days": data.get("frequency_days", 7)
+        }
+        
+        result = db.chores.insert_one(chore)
+        saved = db.chores.find_one({"_id": result.inserted_id})
+        saved_json = to_json(saved)
+        return jsonify(saved_json), 201
+
+@app.route("/api/chores/<chore_id>/complete", methods=["POST"])
+def complete_chore_route(chore_id):
+    result = mark_chore_complete(db, chore_id)
+    if "error" in result:
+        return jsonify(result), 404
+    return jsonify(result), 200
+
+@app.route("/api/groups/<group_name>/calendar", methods=["GET"])
+def get_calendar_route(group_name):
+    try:
+        events = get_group_calendar(db, group_name)
+        return jsonify(events), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # Optional: static files served automatically by Flask from static_folder,
 # but this route can help if needed for direct static access
