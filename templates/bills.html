@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Bills — Roommate Manager{% endblock %}
 {% block content %}
+  <div class="container">
   <h2>Rent & Bills</h2>
 
   <div id="billBox"></div>
@@ -62,4 +63,5 @@ async function submitEditRent() {
 
 loadRent();
 </script>
+  </div>
 {% endblock %}

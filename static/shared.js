@@ -31,7 +31,7 @@ function setGroupName(name) {
 }
 
 /* ---------- UI: Toasts ---------- */
-function showToast(message, type = "info", time = 3000) {
+function showToast(message, type = "info", time = 1500) {
   const el = document.getElementById("global-toast");
   if (!el) return;
   el.innerText = message;
@@ -48,6 +48,24 @@ function showSpinner() {
 function hideSpinner() {
   const s = document.getElementById("global-spinner");
   if (s) s.style.display = "none";
+}
+
+/* ---------- Button loading helpers ---------- */
+function setButtonLoading(button, loading = true) {
+  if (!button) return;
+  if (loading) {
+    button.classList.add('loading');
+    button.disabled = true;
+    if (!button.dataset.originalText) {
+      button.dataset.originalText = button.textContent;
+    }
+  } else {
+    button.classList.remove('loading');
+    button.disabled = false;
+    if (button.dataset.originalText) {
+      button.textContent = button.dataset.originalText;
+    }
+  }
 }
 
 /* ---------- API wrappers ---------- */
@@ -85,17 +103,105 @@ async function apiDelete(path) { return apiFetch(path, { method: "DELETE" }); }
 /* ---------- Modal helpers ---------- */
 function openModal(modalId) {
   const el = document.getElementById(modalId + "-backdrop");
-  if (el) el.style.display = "flex";
+  if (el) {
+    el.classList.add("show");
+    el.style.display = "flex";
+    // Focus trap for accessibility
+    const firstInput = el.querySelector('input, button, textarea, select');
+    if (firstInput) setTimeout(() => firstInput.focus(), 100);
+  }
 }
+
 function closeModal(modalId) {
   const el = document.getElementById(modalId + "-backdrop");
-  if (el) el.style.display = "none";
+  if (el) {
+    el.classList.remove("show");
+    el.style.display = "none";
+    // Reset all buttons in modal to remove loading state
+    const buttons = el.querySelectorAll('.btn.loading');
+    buttons.forEach(btn => {
+      setButtonLoading(btn, false);
+    });
+  }
 }
+
 function setModalField(modalId, selector, value) {
   const root = document.getElementById(modalId + "-backdrop");
   if (!root) return;
   const el = root.querySelector(selector);
   if (el) el.value = value;
+}
+
+// Close modal when clicking backdrop
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal-backdrop')) {
+    e.target.classList.remove("show");
+    e.target.style.display = "none";
+  }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const openModal = document.querySelector('.modal-backdrop.show');
+    if (openModal) {
+      openModal.classList.remove("show");
+      openModal.style.display = "none";
+    }
+  }
+});
+
+// Improved prompt replacement - returns Promise
+function showPrompt(title, message, placeholder = '', defaultValue = '') {
+  return new Promise((resolve) => {
+    const modalId = 'prompt-modal-' + Date.now();
+    const backdrop = document.createElement('div');
+    backdrop.id = modalId + "-backdrop";
+    backdrop.className = "modal-backdrop show";
+    backdrop.style.display = "flex";
+    backdrop.innerHTML = `
+      <div class="modal">
+        <h3>${title}</h3>
+        <p>${message}</p>
+        <div class="modal-body">
+          <div class="modal-input-group">
+            <label>${placeholder || 'Enter value'}</label>
+            <input type="text" id="${modalId}-input" value="${defaultValue}" autofocus>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn secondary" id="${modalId}-cancel">Cancel</button>
+          <button class="btn" id="${modalId}-confirm">Confirm</button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(backdrop);
+    
+    const input = document.getElementById(`${modalId}-input`);
+    const confirmBtn = document.getElementById(`${modalId}-confirm`);
+    const cancelBtn = document.getElementById(`${modalId}-cancel`);
+    
+    const cleanup = () => {
+      backdrop.remove();
+    };
+    
+    const confirm = () => {
+      const val = input.value.trim();
+      cleanup();
+      resolve(val || null);
+    };
+    
+    confirmBtn.onclick = confirm;
+    cancelBtn.onclick = () => { cleanup(); resolve(null); };
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') confirm();
+      if (e.key === 'Escape') { cleanup(); resolve(null); }
+    });
+    
+    setTimeout(() => input.focus(), 100);
+  });
 }
 
 /* ---------- FullCalendar helper (simple) ---------- */

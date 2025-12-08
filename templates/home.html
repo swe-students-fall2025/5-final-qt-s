@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Roommate Manager{% endblock %}
 {% block content %}
+  <div class="container">
   <h2>Dashboard</h2>
 
   <div id="no-group" class="card" style="display:none;">
@@ -10,17 +11,28 @@
   <div id="main-grid" class="grid" style="display:none;">
     <div class="card">
       <h4>Rent Status</h4>
-      <div id="rentBox" class="small text-muted">Loading…</div>
+      <div id="rentBox">
+        <div class="shimmer shimmer-title"></div>
+        <div class="shimmer shimmer-text"></div>
+        <div class="shimmer shimmer-text short"></div>
+      </div>
     </div>
 
     <div class="card">
       <h4>Supplies</h4>
-      <div id="supplyBox" class="small text-muted">Loading…</div>
+      <div id="supplyBox">
+        <div class="shimmer shimmer-title"></div>
+        <div class="shimmer shimmer-text"></div>
+      </div>
     </div>
 
     <div class="card">
       <h4>Next Chores</h4>
-      <div id="choreBox" class="small text-muted">Loading…</div>
+      <div id="choreBox">
+        <div class="shimmer shimmer-title"></div>
+        <div class="shimmer shimmer-text"></div>
+        <div class="shimmer shimmer-text"></div>
+      </div>
     </div>
   </div>
 {% endblock %}
@@ -35,13 +47,14 @@ if (!groupName) {
     try {
       // Rent
       const rent = await apiGet(`/rent-status?group_name=${groupName}`);
-      if (rent.error) document.getElementById("rentBox").innerText = rent.error;
-      else {
+      if (rent.error) {
+        document.getElementById("rentBox").innerHTML = `<div class="small text-muted">${rent.error}</div>`;
+      } else {
         document.getElementById("rentBox").innerHTML = `
-          <div>Total: $${rent.total_rent}</div>
-          <div>Due: ${rent.due_date}</div>
-          <div>Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : rent.status === 'OK' ? 'ok' : 'warn'}">${rent.status}</span></div>
-          <div class="small">${rent.notification || ''}</div>
+          <div class="small" style="margin-bottom: 0.5rem;">Total: <strong>$${rent.total_rent}</strong></div>
+          <div class="small" style="margin-bottom: 0.5rem;">Due: ${rent.due_date}</div>
+          <div style="margin-bottom: 0.5rem;">Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : rent.status === 'OK' ? 'ok' : 'warn'}">${rent.status}</span></div>
+          ${rent.notification ? `<div class="small text-muted">${rent.notification}</div>` : ''}
         `;
       }
 
@@ -49,7 +62,7 @@ if (!groupName) {
       const supplies = await apiGet(`/supplies-status?group_name=${groupName}`);
       const sBox = document.getElementById("supplyBox");
       if (supplies && supplies.low_items && supplies.low_items.length) {
-        sBox.innerHTML = supplies.low_items.map(i => `<div class="label warn">${i.item} – LOW SOON</div>`).join(" ");
+        sBox.innerHTML = supplies.low_items.map(i => `<div class="label warn" style="margin-bottom: 0.5rem; display: inline-block; margin-right: 0.5rem;">${i.item} – LOW SOON</div>`).join("");
       } else {
         sBox.innerHTML = `<div class="small text-muted">All supplies look good</div>`;
       }
@@ -60,13 +73,13 @@ if (!groupName) {
       if (!chores || !chores.chores || chores.chores.length===0) {
         cBox.innerHTML = `<div class="small text-muted">No chores scheduled</div>`;
       } else {
-        cBox.innerHTML = chores.chores.slice(0,5).map(c => `
+        cBox.innerHTML = chores.chores.filter(c => c.status !== 'completed').slice(0,5).map(c => `
           <div class="chore-row">
             <div class="chore-meta">
               <div><b>${c.task}</b><div class="small text-muted">Assigned: ${c.assigned_to}</div></div>
             </div>
             <div class="right">
-              <div class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : ''}">${c.status}</div>
+              <span class="${c.status === 'OVERDUE' ? 'overdue' : 'warn'}">${c.status}</span>
             </div>
           </div>
         `).join("");
@@ -79,4 +92,5 @@ if (!groupName) {
   loadAll();
 }
 </script>
+  </div>
 {% endblock %}
