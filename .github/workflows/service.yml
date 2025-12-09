@@ -1,0 +1,100 @@
+name: Service CI/CD
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+    types: [opened, closed]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r service/requirements.txt
+        pip install -r requirements.txt
+    
+    - name: Run tests with coverage
+      working-directory: service
+      env:
+        MONGO_URL: mongodb://localhost:27017
+        MONGO_DB_NAME: test_db
+      run: |
+        pytest tests/ --cov=service --cov-report=xml --cov-report=term
+    
+    - name: Check coverage threshold
+      working-directory: service
+      run: |
+        coverage report --fail-under=80
+    
+    - name: Upload coverage to Codecov (optional)
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./service/coverage.xml
+        flags: service
+        name: service-coverage
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        file: ./service/Dockerfile
+        push: true
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/service-layer:latest,${{ secrets.DOCKERHUB_USERNAME }}/service-layer:${{ github.sha }}
+        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/service-layer:buildcache
+        cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/service-layer:buildcache,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    continue-on-error: true  # Don't fail workflow if deployment secrets aren't configured yet
+    
+    steps:
+    - name: Deploy to Digital Ocean
+      uses: appleboy/ssh-action@v0.1.7
+      with:
+        host: ${{ secrets.DIGITALOCEAN_HOST }}
+        username: ${{ secrets.DIGITALOCEAN_USERNAME }}
+        key: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
+        script: |
+          docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/service-layer:latest
+          docker stop service-layer || true
+          docker rm service-layer || true
+          docker run -d \
+            --name service-layer \
+            --restart unless-stopped \
+            -p 8100:8100 \
+            -e MONGO_URL=${{ secrets.MONGO_URL }} \
+            -e MONGO_DB_NAME=${{ secrets.MONGO_DB_NAME }} \
+            -e PORT=8100 \
+            ${{ secrets.DOCKERHUB_USERNAME }}/service-layer:latest

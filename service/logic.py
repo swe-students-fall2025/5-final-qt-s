@@ -1,6 +1,23 @@
 from datetime import datetime, timedelta
 from bson.objectid import ObjectId
 
+def compute_recommendations(db, tag):
+    """
+    Compute recommendations based on a tag.
+    Searches for items matching the given tag.
+    """
+    # Search for items with matching tags
+    # This is a placeholder implementation - adjust based on your data model
+    items = list(db.items.find({"mood_tags": tag}).limit(10))
+    
+    # Convert ObjectId to string for JSON serialization
+    results = []
+    for item in items:
+        item["_id"] = str(item["_id"])
+        results.append(item)
+    
+    return results
+
 def analyze_rent(db, group_name):
     rent_doc = db.rent.find_one({"group_name": group_name})
     if not rent_doc:
