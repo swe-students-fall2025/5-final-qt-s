@@ -18,17 +18,36 @@
   </div>
 
   <!-- Add Chore Button -->
-  <div class="card" style="margin-bottom: 16px;">
-    <button class="btn" onclick="openAddChoreModal()" style="width: 100%;">+ Add New Chore</button>
+  <div class="card" style="margin-bottom: 16px; display: flex; gap: 12px;">
+    <button class="btn" onclick="openAddChoreModal()" style="flex: 1;">+ Add New Chore</button>
+    <button class="btn secondary" onclick="showStats()" style="flex: 1;">📊 View Stats</button>
   </div>
 
   <!-- Stats Section -->
-  <div id="statsSection" class="card" style="margin-bottom: 16px; display: none;">
-    <h3 style="margin-bottom: 16px;">📊 Chore Statistics</h3>
-    <div id="statsContent">
-      <div class="small text-muted">Loading stats...</div>
+  <div id="statsSection" class="card" style="margin-bottom: 16px; display: none; border: 1px solid var(--border);">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h3 style="margin:0;">📊 Group Insights</h3>
+        <button class="btn ghost small" onclick="loadLeaderboard()">🔄 Refresh</button>
     </div>
-    <button class="btn secondary" onclick="hideStats()" style="margin-top: 12px;">Back to Chores</button>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
+        <div style="background: var(--surface-secondary); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Total Completed</div>
+            <div id="stat-total-chores" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">0</div>
+        </div>
+        <div style="background: var(--surface-secondary); padding: 12px; border-radius: 8px; text-align: center;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Top Performer</div>
+            <div id="stat-top-performer" style="font-size: 1.1rem; font-weight: 600; color: var(--success);">--</div>
+        </div>
+    </div>
+
+    <h4 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">🏆 Leaderboard</h4>
+    <div id="leaderboard-container">
+        <div class="small text-muted text-center">Loading data...</div>
+    </div>
+
+    <button class="btn secondary" onclick="hideStats()" style="margin-top: 20px; width: 100%;">Close Stats</button>
   </div>
 
   <!-- Chores Tabs Container -->

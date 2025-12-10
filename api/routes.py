@@ -465,5 +465,53 @@ def delete_group(group_id):
 
 
 
+@routes.route("/groups/<group_name>/leaderboard", methods=["GET"])
+def leaderboard_route(group_name):
+    """Get chore completion statistics for the leaderboard"""
+    try:
+        pipeline = [
+            {"$match": {
+                "group_name": group_name,
+                "status": "completed", 
+                "completed_by": {"$exists": True, "$ne": None}
+            }},
+            {"$group": {
+                "_id": "$completed_by", 
+                "count": {"$sum": 1}
+            }},
+            {"$sort": {"count": -1}}
+        ]
+        
+        results = list(db.chores.aggregate(pipeline))
+        
+        leaderboard = []
+        
+        for item in results:
+            user_identifier = item["_id"]
+            count = item["count"]
+            username = "Unknown"
+            
+            # 4. Try to find the username
+            try:
+                user = db.users.find_one({"_id": ObjectId(user_identifier)})
+                if user:
+                    username = user.get("username", "Unknown")
+                else:
+                    username = str(user_identifier)
+            except:
+                username = str(user_identifier)
+            
+            leaderboard.append({
+                "name": username,
+                "count": count
+            })
+            
+        return jsonify(leaderboard), 200
+
+    except Exception as e:
+        print(f"Error generating leaderboard: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 # Note: Routes using @app.route should be registered in app.py after blueprint import
 # to avoid circular imports. These are moved to app.py.
