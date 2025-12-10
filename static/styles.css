@@ -725,3 +725,37 @@ h2 {
   background: var(--surface-secondary);
   font-weight: 600;
 }
+
+
+body.dark-mode {
+
+  --background: #121212;
+  --surface: #1e1e1e;
+  --surface-secondary: #2d2d2d;
+  --text-primary: #e0e0e0;
+  --text-secondary: #b0b0b0;
+  --border: #333333;
+  --border-light: #444444;
+  
+  background-color: var(--background);
+  color: var(--text-primary);
+}
+
+body.dark-mode .header {
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+body.dark-mode input, 
+body.dark-mode textarea, 
+body.dark-mode select {
+  background-color: var(--surface-secondary);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+body.dark-mode .card,
+body.dark-mode .chore-row {
+  background-color: var(--surface);
+  border-color: var(--border);
+}
