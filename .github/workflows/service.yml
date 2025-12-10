@@ -54,7 +54,7 @@ jobs:
         MONGO_URL: mongodb://localhost:27017
         MONGO_DB_NAME: test_db
       run: |
-        pytest tests/ --cov=service --cov-report=xml --cov-report=term -v
+        pytest service/tests/ --cov=service --cov-report=xml:service/coverage.xml --cov-report=term -v
     
     - name: Check coverage threshold
       working-directory: service

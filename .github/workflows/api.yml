@@ -56,7 +56,7 @@ jobs:
         MONGO_DB_NAME: test_db
         JWT_SECRET: test-secret-key
       run: |
-        pytest tests/ --cov=api --cov-report=xml --cov-report=term -v
+        pytest api/tests/ --cov=api --cov-report=xml:api/coverage.xml --cov-report=term -v
     
     - name: Check coverage threshold
       working-directory: api
