@@ -1,10 +1,12 @@
 # Roommate Management System
 [![API CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml/badge.svg?branch=main)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml)
-[![Service CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml)
+[![Service CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml/badge.svg?branch=main)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml)
 
 ## Live Deployment
 
-**API Service:** Insert link
+**API Service:** http://159.65.178.253:8000
+
+The application is automatically deployed to Digital Ocean via GitHub Actions CI/CD pipeline when changes are pushed to the `main` branch.
 
 ## Introduction
 
@@ -36,11 +38,11 @@ The system is built with a microservices architecture, consisting of a main API 
 The application consists of three main subsystems:
 
 1. **API Service** (`api/`): Flask web application serving the frontend and REST API endpoints
-   - Docker Hub: [YOUR_DOCKERHUB_USERNAME/api-service](https://hub.docker.com/r/YOUR_DOCKERHUB_USERNAME/api-service)
+   - Docker Hub: [khushboo1908/api-service](https://hub.docker.com/r/khushboo1908/api-service)
    - Port: 8000
 
 2. **Service Layer** (`service/`): Flask microservice providing business logic and recommendation services
-   - Docker Hub: [YOUR_DOCKERHUB_USERNAME/service-layer](https://hub.docker.com/r/YOUR_DOCKERHUB_USERNAME/service-layer)
+   - Docker Hub: [khushboo1908/service-layer](https://hub.docker.com/r/khushboo1908/service-layer)
    - Port: 8100
 
 3. **MongoDB Database**: Document database storing all application data
@@ -172,4 +174,57 @@ Configure the following secrets in your GitHub repository settings:
 | `JWT_SECRET`                | Secret key for JWT tokens                    | Deploy only |
 
 **Note:** The deployment step is configured with `continue-on-error: true`, so the workflow will still pass even if deployment secrets are not configured. Tests and Docker builds will run regardless.
+
+### Digital Ocean Deployment Setup
+
+The application is deployed to a Digital Ocean droplet with the following configuration:
+
+- **Host**: 159.65.178.253
+- **Network**: Containers use host networking mode to access MongoDB running on the same host
+- **MongoDB**: Running in a Docker container, accessible via `localhost:27017` from application containers
+- **Firewall**: Ports 22 (SSH), 8000 (API), 8100 (Service Layer), and 27017 (MongoDB) are open
+
+#### Deployment Process
+
+1. **Automatic Deployment**: When code is pushed to the `main` branch:
+   - GitHub Actions runs tests
+   - Docker images are built and pushed to Docker Hub
+   - Images are pulled and deployed to the Digital Ocean droplet
+   - Containers are restarted with the latest images
+
+2. **Manual Deployment** (if needed):
+   ```bash
+   # SSH into the droplet
+   ssh root@159.65.178.253
+   
+   # Pull latest images
+   docker login -u YOUR_DOCKERHUB_USERNAME -p YOUR_DOCKERHUB_TOKEN
+   docker pull khushboo1908/api-service:latest
+   docker pull khushboo1908/service-layer:latest
+   
+   # Restart containers
+   docker stop api-service service-layer || true
+   docker rm api-service service-layer || true
+   docker run -d --name api-service --restart unless-stopped --network host \
+     -e MONGO_URL=mongodb://localhost:27017 \
+     -e MONGO_DB_NAME=main_db \
+     -e JWT_SECRET=YOUR_JWT_SECRET \
+     -e PORT=8000 \
+     khushboo1908/api-service:latest
+   
+   docker run -d --name service-layer --restart unless-stopped --network host \
+     -e MONGO_URL=mongodb://localhost:27017 \
+     -e MONGO_DB_NAME=main_db \
+     -e PORT=8100 \
+     khushboo1908/service-layer:latest
+   ```
+
+#### Setting Up GitHub Secrets
+
+To enable automated deployment, configure the following secrets in your GitHub repository:
+
+1. Go to: `https://github.com/swe-students-fall2025/5-final-qt-s/settings/secrets/actions`
+2. Add each secret listed in the table above
+3. For `DIGITALOCEAN_SSH_KEY`, paste your entire SSH private key (including `-----BEGIN OPENSSH PRIVATE KEY-----` and `-----END OPENSSH PRIVATE KEY-----` lines)
+4. For `JWT_SECRET`, generate a secure random 64-character hex string
 
