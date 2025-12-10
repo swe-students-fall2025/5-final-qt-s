@@ -41,10 +41,35 @@
       </div>
       <div class="input-field">
         <label>Photo / Video of Chore (optional)</label>
-        <input id="add_media" type="file" accept="image/*,video/*" capture="environment">
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn secondary" onclick="openCameraView()" style="flex: 1; min-width: 120px;">
+            📷 Take Photo/Video
+          </button>
+          <button type="button" class="btn secondary" onclick="document.getElementById('add_media_file').click()" style="flex: 1; min-width: 120px;">
+            📁 Choose File
+          </button>
+        </div>
+        <input id="add_media_file" type="file" accept="image/*,video/*" style="display: none;" />
+        
+        <!-- Live Camera View -->
+        <div id="camera_view_container" style="display: none; margin-top: 12px;">
+          <video id="camera_preview" autoplay playsinline style="width: 100%; max-height: 300px; border-radius: 4px; background: #000;"></video>
+          <canvas id="camera_canvas" style="display: none;"></canvas>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn" onclick="capturePhoto()" style="flex: 1;">📸 Take Photo</button>
+            <button type="button" class="btn" id="record_video_btn" onclick="startVideoRecording()" style="flex: 1;">🎥 Record Video</button>
+            <button type="button" class="btn secondary" onclick="closeCameraView()" style="flex: 1;">Cancel</button>
+          </div>
+          <div id="video_recording_controls" style="display: none; margin-top: 8px;">
+            <button type="button" class="btn" id="stop_recording_btn" onclick="stopVideoRecording()" style="width: 100%;">⏹ Stop Recording</button>
+          </div>
+        </div>
+        
+        <!-- Preview of captured/selected media -->
         <div id="add_media_preview" style="margin-top: 8px; display: none;">
           <img id="add_media_preview_img" style="max-width: 100%; max-height: 200px; border-radius: 4px;" />
           <video id="add_media_preview_video" style="max-width: 100%; max-height: 200px; border-radius: 4px; display: none;" controls></video>
+          <button type="button" class="btn secondary" onclick="clearMediaPreview()" style="margin-top: 8px; width: 100%;">Remove</button>
         </div>
       </div>
       <div class="modal-footer">
@@ -150,45 +175,197 @@ function openAddChoreModal() {
   setModalField('modal-add-chore', '#add_assigned', '');
   setModalField('modal-add-chore', '#add_due', '');
   document.getElementById('add_recurring').value = '';
-  document.getElementById('add_media').value = '';
-  document.getElementById('add_media_preview').style.display = 'none';
-  document.getElementById('add_media_preview_img').src = '';
-  document.getElementById('add_media_preview_video').src = '';
+  clearMediaPreview();
+  closeCameraView(); // Make sure camera is closed
+  capturedMediaFile = null;
   // Reset button state when opening modal
   const btn = document.getElementById('modal-add-chore-save-btn');
   if (btn) setButtonLoading(btn, false);
   openModal('modal-add-chore');
 }
 
-// Preview media when file is selected
-document.addEventListener('DOMContentLoaded', function() {
-  const mediaInput = document.getElementById('add_media');
-  if (mediaInput) {
-    mediaInput.addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) {
-        document.getElementById('add_media_preview').style.display = 'none';
-        return;
+// Camera and media handling
+let cameraStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let capturedMediaFile = null;
+
+function openCameraView() {
+  const container = document.getElementById('camera_view_container');
+  const preview = document.getElementById('camera_preview');
+  
+  container.style.display = 'block';
+  document.getElementById('add_media_preview').style.display = 'none';
+  
+  // Request camera access
+  navigator.mediaDevices.getUserMedia({ 
+    video: { facingMode: 'environment' }, 
+    audio: true 
+  })
+  .then(stream => {
+    cameraStream = stream;
+    preview.srcObject = stream;
+  })
+  .catch(err => {
+    showToast("Could not access camera: " + err.message, "error");
+    closeCameraView();
+  });
+}
+
+function closeCameraView() {
+  const container = document.getElementById('camera_view_container');
+  const preview = document.getElementById('camera_preview');
+  const recordingControls = document.getElementById('video_recording_controls');
+  
+  // Stop camera stream
+  if (cameraStream) {
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+  
+  // Stop recording if active
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+  
+  preview.srcObject = null;
+  container.style.display = 'none';
+  recordingControls.style.display = 'none';
+  document.getElementById('record_video_btn').style.display = 'block';
+}
+
+function capturePhoto() {
+  const preview = document.getElementById('camera_preview');
+  const canvas = document.getElementById('camera_canvas');
+  const previewImg = document.getElementById('add_media_preview_img');
+  const previewDiv = document.getElementById('add_media_preview');
+  
+  canvas.width = preview.videoWidth;
+  canvas.height = preview.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(preview, 0, 0);
+  
+  // Convert canvas to blob
+  canvas.toBlob(function(blob) {
+    capturedMediaFile = new File([blob], 'photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      previewImg.src = e.target.result;
+      document.getElementById('add_media_preview_video').style.display = 'none';
+      previewImg.style.display = 'block';
+      previewDiv.style.display = 'block';
+    };
+    reader.readAsDataURL(blob);
+    
+    closeCameraView();
+    showToast("Photo captured!", "success");
+  }, 'image/jpeg', 0.9);
+}
+
+function startVideoRecording() {
+  const preview = document.getElementById('camera_preview');
+  const recordingControls = document.getElementById('video_recording_controls');
+  
+  recordedChunks = [];
+  
+  try {
+    mediaRecorder = new MediaRecorder(cameraStream, {
+      mimeType: 'video/webm;codecs=vp8,opus'
+    });
+    
+    mediaRecorder.ondataavailable = function(event) {
+      if (event.data.size > 0) {
+        recordedChunks.push(event.data);
       }
+    };
+    
+    mediaRecorder.onstop = function() {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      capturedMediaFile = new File([blob], 'video_' + Date.now() + '.webm', { type: 'video/webm' });
       
-      const preview = document.getElementById('add_media_preview');
-      const previewImg = document.getElementById('add_media_preview_img');
+      // Show preview
       const previewVideo = document.getElementById('add_media_preview_video');
+      const previewImg = document.getElementById('add_media_preview_img');
+      const previewDiv = document.getElementById('add_media_preview');
       
-      preview.style.display = 'block';
+      previewVideo.src = URL.createObjectURL(blob);
+      previewImg.style.display = 'none';
+      previewVideo.style.display = 'block';
+      previewDiv.style.display = 'block';
       
-      if (file.type.startsWith('image/')) {
-        previewImg.style.display = 'block';
-        previewVideo.style.display = 'none';
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          previewImg.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      } else if (file.type.startsWith('video/')) {
-        previewImg.style.display = 'none';
-        previewVideo.style.display = 'block';
-        previewVideo.src = URL.createObjectURL(file);
+      closeCameraView();
+      showToast("Video recorded!", "success");
+    };
+    
+    mediaRecorder.start();
+    document.getElementById('record_video_btn').style.display = 'none';
+    recordingControls.style.display = 'block';
+  } catch (err) {
+    showToast("Could not start recording: " + err.message, "error");
+  }
+}
+
+function stopVideoRecording() {
+  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+    mediaRecorder.stop();
+  }
+}
+
+function clearMediaPreview() {
+  document.getElementById('add_media_file').value = '';
+  document.getElementById('add_media_preview').style.display = 'none';
+  document.getElementById('add_media_preview_img').src = '';
+  const videoEl = document.getElementById('add_media_preview_video');
+  if (videoEl.src) {
+    URL.revokeObjectURL(videoEl.src);
+    videoEl.src = '';
+  }
+  capturedMediaFile = null;
+}
+
+// Preview media when file is selected (from camera or file picker)
+function handleMediaSelection(file) {
+  if (!file) {
+    document.getElementById('add_media_preview').style.display = 'none';
+    return;
+  }
+  
+  const preview = document.getElementById('add_media_preview');
+  const previewImg = document.getElementById('add_media_preview_img');
+  const previewVideo = document.getElementById('add_media_preview_video');
+  
+  preview.style.display = 'block';
+  
+  if (file.type.startsWith('image/')) {
+    previewImg.style.display = 'block';
+    previewVideo.style.display = 'none';
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      previewImg.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  } else if (file.type.startsWith('video/')) {
+    previewImg.style.display = 'none';
+    previewVideo.style.display = 'block';
+    // Revoke old URL if exists
+    if (previewVideo.src) {
+      URL.revokeObjectURL(previewVideo.src);
+    }
+    previewVideo.src = URL.createObjectURL(file);
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const fileInput = document.getElementById('add_media_file');
+  
+  if (fileInput) {
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        capturedMediaFile = null; // Clear captured file if selecting from picker
+        handleMediaSelection(file);
       }
     });
   }
@@ -199,7 +376,9 @@ async function submitAddChore() {
   const assigned = document.getElementById('add_assigned').value.trim();
   const due = document.getElementById('add_due').value;
   const recurring = document.getElementById('add_recurring').value;
-  const mediaFile = document.getElementById('add_media').files[0];
+  // Get file from captured media or file input
+  const fileFile = document.getElementById('add_media_file').files[0];
+  const mediaFile = capturedMediaFile || fileFile;
 
   
   if (!task || !due) return showToast("Task and due date required", "error");
