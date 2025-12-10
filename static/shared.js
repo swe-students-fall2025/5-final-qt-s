@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Check if user already chose dark mode before
   if (localStorage.getItem('theme') === 'dark') {
       body.classList.add('dark-mode');
-      toggleButton.innerText = "☀️ Light Mode";
+      toggleButton.innerText = "Light Mode";
   }
 
   // 2. Listen for button click
@@ -252,10 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (body.classList.contains('dark-mode')) {
               localStorage.setItem('theme', 'dark');
-              toggleButton.innerText = "☀️ Light Mode";
+              toggleButton.innerText = "Light Mode";
           } else {
               localStorage.setItem('theme', 'light');
-              toggleButton.innerText = "🌙 Dark Mode";
+              toggleButton.innerText = "Dark Mode";
           }
       });
   }

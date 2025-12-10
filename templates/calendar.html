@@ -46,11 +46,12 @@
     }
     
     .group-display {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--primary);
       color: white;
       padding: 12px 16px;
       border-radius: 8px;
       margin-bottom: 16px;
+      border: none;
     }
     
     .group-display .label {
@@ -110,7 +111,7 @@
     
     .calendar-day:hover {
       background: #f8f9fa;
-      border-color: #667eea;
+      border-color: var(--primary);
     }
     
     .calendar-day.today {
@@ -296,7 +297,7 @@
       <div class="group-display">
         <div class="label">Current Group</div>
         <div class="name" id="groupNameDisplay">Select a group</div>
-        <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none; margin-top: 8px; width: 100%; padding: 8px;">
+        <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: var(--primary); border: none; margin-top: 8px; width: 100%; padding: 8px;">
           Change Group
         </button>
       </div>
@@ -691,7 +692,7 @@
         return `
           <div class="sticky-note ${type}" onclick="handleStickyNoteClick('${eventId}', '${type}')">
             <div class="sticky-note-title">${title}</div>
-            <div class="sticky-note-date">📅 ${dateDisplay}</div>
+            <div class="sticky-note-date">${dateDisplay}</div>
           </div>
         `;
       }).join('');

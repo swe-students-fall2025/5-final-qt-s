@@ -1,6 +1,5 @@
 # Roommate Management System
-
-[![API CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml)
+[![API CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml/badge.svg?branch=main)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/api.yml)
 [![Service CI/CD](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml/badge.svg)](https://github.com/swe-students-fall2025/5-final-qt-s/actions/workflows/service.yml)
 
 ## Live Deployment
