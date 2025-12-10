@@ -5,7 +5,6 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-    types: [opened, closed]
 
 jobs:
   test:
@@ -51,13 +50,13 @@ jobs:
         done
     
     - name: Run tests with coverage
-      working-directory: api
+
       env:
         MONGO_URL: mongodb://localhost:27017
         MONGO_DB_NAME: test_db
         JWT_SECRET: test-secret-key
       run: |
-        pytest tests/ --cov=api --cov-report=xml --cov-report=term -v
+        pytest api/tests/ --cov=api --cov-report=xml:api/coverage.xml --cov-report=term -v
     
     - name: Check coverage threshold
       working-directory: api
@@ -104,7 +103,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    continue-on-error: true  # Don't fail workflow if deployment secrets aren't configured yet
+    continue-on-error: true  
     
     steps:
     - name: Deploy to Digital Ocean

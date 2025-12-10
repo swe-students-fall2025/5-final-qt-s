@@ -297,11 +297,11 @@ def add_roommate(group_id):
         "created_at": datetime.now().isoformat()
     }
     
-    db.group_invitations.insert_one(invitation)
+    result = db.group_invitations.insert_one(invitation)
     
     return jsonify({
         "message": f"Invitation sent to {user.get('username', 'user')}",
-        "invitation_id": str(invitation["_id"])
+        "invitation_id": str(result.inserted_id)
     }), 201
 
 @routes.route("/groups/<group_id>/roommates/<user_id>/accept", methods=["POST"])
