@@ -3,8 +3,6 @@ from unittest.mock import MagicMock, patch
 from bson import ObjectId
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
-
-# Import the app
 from api.app import app
 
 
@@ -31,9 +29,8 @@ def test_create_user(client, mock_db):
     with patch('api.routes.db', mock_db):
         fake_id = ObjectId()
         
-        # First call: check if user exists (returns None), second call: return created user
         mock_db.users.find_one.side_effect = [
-            None,  # User doesn't exist
+            None, 
             {
                 "_id": fake_id,
                 "username": "testuser",
@@ -151,7 +148,8 @@ def test_add_roommate(client, mock_db):
         fake_group_id = ObjectId()
         fake_user_id = ObjectId()
         
-        # First call: get group (before adding), second call: get group (after adding)
+        mock_db.group_invitations.find_one.return_value = None
+
         mock_db.groups.find_one.side_effect = [
             {
                 "_id": fake_group_id,
@@ -169,14 +167,17 @@ def test_add_roommate(client, mock_db):
             "_id": fake_user_id,
             "username": "newuser"
         }
+
+        mock_db.group_invitations.insert_one.return_value.inserted_id = ObjectId()
         
         response = client.post(f'/api/groups/{fake_group_id}/roommates', json={
             "user_id": str(fake_user_id)
         })
         
-        assert response.status_code == 200
+        assert response.status_code == 201
         data = response.get_json()
-        assert str(fake_user_id) in data["roommates"]
+        assert "invitation_id" in data
+        assert "message" in data
 
 
 def test_create_chore(client, mock_db):
@@ -235,7 +236,7 @@ def test_complete_chore(client, mock_db):
         with patch('api.app.mark_chore_complete') as mock_complete:
             mock_complete.return_value = {"message": "Chore marked as done."}
             
-            response = client.post(f'/api/chores/{fake_id}/complete')
+            response = client.post(f'/api/chores/{fake_id}/complete', json={})
             
             assert response.status_code == 200
             data = response.get_json()
