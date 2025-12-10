@@ -20,9 +20,9 @@ def test_rotation_logic(mock_db):
     }
     
     fake_roommates = [
-        {"name": "Alissa", "group_name": "Apt A"},
-        {"name": "Khusboo", "group_name": "Apt A"},
-        {"name": "Reece", "group_name": "Apt A"}
+        {"username": "Alissa", "group_name": "Apt A"},
+        {"username": "Khusboo", "group_name": "Apt A"},
+        {"username": "Reece", "group_name": "Apt A"}
     ]
 
     mock_db.chores.find_one.return_value = fake_chore_doc

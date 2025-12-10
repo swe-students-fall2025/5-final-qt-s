@@ -1,16 +1,22 @@
 from service.logic import compute_recommendations
 
 def test_recommendations():
-    class FakeDB:
+    class FakeCollection:
         def __init__(self, docs):
             self.docs = docs
-
+            
         def find(self, query):
-            class Cursor:
-                def __init__(self, docs): self.docs = docs
-                def limit(self, n): return self
-                def __iter__(self): return iter(self.docs)
-            return Cursor(self.docs)
+            return self
+            
+        def limit(self, n):
+            return self.docs
+            
+        def __iter__(self):
+            return iter(self.docs)
+
+    class FakeDB:
+        def __init__(self, docs):
+            self.items = FakeCollection(docs)
 
     fake_docs = [
         {"_id": 1, "name": "TestItem", "mood_tags": ["happy"]}
