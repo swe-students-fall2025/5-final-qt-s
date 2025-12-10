@@ -157,18 +157,37 @@ def create_group():
 
 @routes.route("/groups/<group_id>", methods=["GET"])
 def get_group(group_id):
-    """Get a group by ID"""
+    """Get a group by ID with roommates info"""
     try:
         group = db.groups.find_one({"_id": ObjectId(group_id)})
         if not group:
             return jsonify({"error": "Group not found"}), 404
-        return jsonify(to_json(group)), 200
+        
+        group_json = to_json(group)
+        
+        # Get roommate usernames
+        roommate_ids = group.get("roommates", [])
+        roommates_info = []
+        for rm_id in roommate_ids:
+            try:
+                user = db.users.find_one({"_id": ObjectId(rm_id)})
+                if user:
+                    roommates_info.append({
+                        "user_id": rm_id,
+                        "username": user.get("username", ""),
+                        "email": user.get("email", "")
+                    })
+            except Exception:
+                pass
+        
+        group_json["roommates_info"] = roommates_info
+        return jsonify(group_json), 200
     except Exception as e:
         return jsonify({"error": "Invalid group ID"}), 400
 
 @routes.route("/groups", methods=["GET"])
 def get_groups():
-    """Get all groups (optional: filter by created_by or roommates)"""
+    """Get all groups (optional: filter by created_by or roommates) with roommates info"""
     created_by = request.args.get("created_by")
     roommate_id = request.args.get("roommate_id")
     
@@ -193,12 +212,29 @@ def get_groups():
                     group_json["created_by_username"] = creator.get("username", "")
             except Exception:
                 pass
+        
+        # Get roommate usernames
+        roommate_ids = g.get("roommates", [])
+        roommates_info = []
+        for rm_id in roommate_ids:
+            try:
+                user = db.users.find_one({"_id": ObjectId(rm_id)})
+                if user:
+                    roommates_info.append({
+                        "user_id": rm_id,
+                        "username": user.get("username", ""),
+                        "email": user.get("email", "")
+                    })
+            except Exception:
+                pass
+        
+        group_json["roommates_info"] = roommates_info
         groups_json.append(group_json)
     return jsonify(groups_json), 200
 
 @routes.route("/groups/<group_id>/roommates", methods=["POST"])
 def add_roommate(group_id):
-    """Add a roommate to a group"""
+    """Send an invitation to join a group. Accepts user_id, email, or username."""
     try:
         group = db.groups.find_one({"_id": ObjectId(group_id)})
         if not group:
@@ -210,28 +246,172 @@ def add_roommate(group_id):
     if "user_id" not in data:
         return jsonify({"error": "Missing required field: user_id"}), 400
     
-    user_id = data["user_id"]
+    user_identifier = data["user_id"].strip()
+    inviter_id = data.get("inviter_id")  # Who is sending the invitation
     
-    # Validate that user exists
+    # Try to find user by ID, email, or username
+    user = None
     try:
-        user = db.users.find_one({"_id": ObjectId(user_id)})
-        if not user:
-            return jsonify({"error": "User not found"}), 404
+        # First try as ObjectId
+        user = db.users.find_one({"_id": ObjectId(user_identifier)})
     except Exception:
-        return jsonify({"error": "Invalid user ID"}), 400
+        pass
+    
+    # If not found by ID, try email or username
+    if not user:
+        user = db.users.find_one({
+            "$or": [
+                {"email": user_identifier},
+                {"username": user_identifier}
+            ]
+        })
+    
+    if not user:
+        return jsonify({"error": "User not found. Please check the user ID, email, or username."}), 404
+    
+    # Get the actual user_id as string
+    user_id = str(user["_id"])
     
     # Check if user is already a roommate
     if user_id in group.get("roommates", []):
         return jsonify({"error": "User is already a roommate in this group"}), 409
     
-    # Add roommate
-    db.groups.update_one(
-        {"_id": ObjectId(group_id)},
-        {"$addToSet": {"roommates": user_id}}
-    )
+    # Check if invitation already exists
+    existing_invite = db.group_invitations.find_one({
+        "group_id": group_id,
+        "invited_user_id": user_id,
+        "status": "pending"
+    })
     
-    updated_group = db.groups.find_one({"_id": ObjectId(group_id)})
-    return jsonify(to_json(updated_group)), 200
+    if existing_invite:
+        return jsonify({"error": "Invitation already sent to this user"}), 409
+    
+    # Create invitation
+    invitation = {
+        "group_id": group_id,
+        "group_name": group.get("name", ""),
+        "invited_user_id": user_id,
+        "invited_username": user.get("username", ""),
+        "inviter_id": inviter_id,
+        "status": "pending",
+        "created_at": datetime.now().isoformat()
+    }
+    
+    db.group_invitations.insert_one(invitation)
+    
+    return jsonify({
+        "message": f"Invitation sent to {user.get('username', 'user')}",
+        "invitation_id": str(invitation["_id"])
+    }), 201
+
+@routes.route("/groups/<group_id>/roommates/<user_id>/accept", methods=["POST"])
+def accept_invitation(group_id, user_id):
+    """Accept a group invitation and add user to group"""
+    try:
+        # Find pending invitation
+        invitation = db.group_invitations.find_one({
+            "group_id": group_id,
+            "invited_user_id": user_id,
+            "status": "pending"
+        })
+        
+        if not invitation:
+            return jsonify({"error": "Invitation not found or already processed"}), 404
+        
+        # Get group
+        group = db.groups.find_one({"_id": ObjectId(group_id)})
+        if not group:
+            return jsonify({"error": "Group not found"}), 404
+        
+        # Check if user is already a roommate
+        if user_id in group.get("roommates", []):
+            # Mark invitation as accepted anyway
+            db.group_invitations.update_one(
+                {"_id": invitation["_id"]},
+                {"$set": {"status": "accepted"}}
+            )
+            return jsonify({"error": "User is already a roommate in this group"}), 409
+        
+        # Add roommate to group
+        db.groups.update_one(
+            {"_id": ObjectId(group_id)},
+            {"$addToSet": {"roommates": user_id}}
+        )
+        
+        # Mark invitation as accepted
+        db.group_invitations.update_one(
+            {"_id": invitation["_id"]},
+            {"$set": {"status": "accepted", "accepted_at": datetime.now().isoformat()}}
+        )
+        
+        updated_group = db.groups.find_one({"_id": ObjectId(group_id)})
+        return jsonify(to_json(updated_group)), 200
+    except Exception as e:
+        return jsonify({"error": f"Invalid group ID or user ID: {str(e)}"}), 400
+
+@routes.route("/groups/<group_id>/roommates/<user_id>/decline", methods=["POST"])
+def decline_invitation(group_id, user_id):
+    """Decline a group invitation"""
+    try:
+        invitation = db.group_invitations.find_one({
+            "group_id": group_id,
+            "invited_user_id": user_id,
+            "status": "pending"
+        })
+        
+        if not invitation:
+            return jsonify({"error": "Invitation not found or already processed"}), 404
+        
+        # Mark invitation as declined
+        db.group_invitations.update_one(
+            {"_id": invitation["_id"]},
+            {"$set": {"status": "declined", "declined_at": datetime.now().isoformat()}}
+        )
+        
+        return jsonify({"message": "Invitation declined"}), 200
+    except Exception:
+        return jsonify({"error": "Invalid group ID or user ID"}), 400
+
+@routes.route("/invitations", methods=["GET"])
+def get_invitations():
+    """Get pending invitations for the current user"""
+    user_id = request.args.get("user_id")
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+    
+    invitations = list(db.group_invitations.find({
+        "invited_user_id": user_id,
+        "status": "pending"
+    }))
+    
+    # Enrich with group and inviter info
+    invitations_json = []
+    for inv in invitations:
+        inv_json = to_json(inv)
+        # Get group info
+        try:
+            group = db.groups.find_one({"_id": ObjectId(inv["group_id"])})
+            if group:
+                inv_json["group"] = {
+                    "id": str(group["_id"]),
+                    "name": group.get("name", ""),
+                    "created_by_username": group.get("created_by_username", "")
+                }
+        except Exception:
+            pass
+        
+        # Get inviter info
+        if inv.get("inviter_id"):
+            try:
+                inviter = db.users.find_one({"_id": ObjectId(inv["inviter_id"])})
+                if inviter:
+                    inv_json["inviter_username"] = inviter.get("username", "")
+            except Exception:
+                pass
+        
+        invitations_json.append(inv_json)
+    
+    return jsonify(invitations_json), 200
 
 @routes.route("/groups/<group_id>/roommates/<user_id>", methods=["DELETE"])
 def remove_roommate(group_id, user_id):
@@ -259,6 +439,29 @@ def remove_roommate(group_id, user_id):
         return jsonify(to_json(updated_group)), 200
     except Exception:
         return jsonify({"error": "Invalid group ID or user ID"}), 400
+
+@routes.route("/groups/<group_id>", methods=["DELETE"])
+def delete_group(group_id):
+    """Delete a group. Only the creator can delete it."""
+    try:
+        group = db.groups.find_one({"_id": ObjectId(group_id)})
+        if not group:
+            return jsonify({"error": "Group not found"}), 404
+        
+        # Get creator_id from request (should be passed from frontend)
+        data = request.json or {}
+        creator_id = data.get("creator_id") or request.args.get("creator_id")
+        
+        # Verify the requester is the creator
+        if creator_id and str(group.get("created_by")) != str(creator_id):
+            return jsonify({"error": "Only the group creator can delete the group"}), 403
+        
+        # Delete the group
+        db.groups.delete_one({"_id": ObjectId(group_id)})
+        
+        return jsonify({"message": "Group deleted successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": "Invalid group ID"}), 400
 
 
 
