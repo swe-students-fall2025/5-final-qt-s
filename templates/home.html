@@ -1,36 +1,64 @@
 {% extends "base.html" %}
 {% block title %}Dashboard — Roommate Manager{% endblock %}
+{% block head %}
+  <style>
+    #billCard:hover, #choreCard:hover, #eventCard:hover, #groupCard:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s ease;
+    }
+  </style>
+{% endblock %}
 {% block content %}
   <div class="container">
   <h2>Dashboard</h2>
+
+  <!-- Group Selection Section -->
+  <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="row" style="align-items: center;">
+      <div style="flex: 1;">
+        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 4px;">Current Group</div>
+        <div style="font-size: 1.25rem; font-weight: 600;" id="groupNameDisplay">Select a group</div>
+      </div>
+      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none;">
+        Change Group
+      </button>
+    </div>
+  </div>
 
   <div id="no-group" class="card" style="display:none;">
     <div class="small">No group selected. Go to <a href="/my_groups">My Groups</a> and choose a group.</div>
   </div>
 
   <div id="main-grid" class="grid" style="display:none;">
-    <div class="card">
-      <h4>Rent Status</h4>
-      <div id="rentBox">
-        <div class="shimmer shimmer-title"></div>
-        <div class="shimmer shimmer-text"></div>
-        <div class="shimmer shimmer-text short"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h4>Supplies</h4>
-      <div id="supplyBox">
+    <div class="card" style="cursor: pointer;" onclick="window.location.href='/bills'" id="billCard">
+      <h4>Bill Status</h4>
+      <div id="billBox">
         <div class="shimmer shimmer-title"></div>
         <div class="shimmer shimmer-text"></div>
       </div>
     </div>
 
-    <div class="card">
-      <h4>Next Chores</h4>
+    <div class="card" style="cursor: pointer;" onclick="window.location.href='/chores'" id="choreCard">
+      <h4>Chore Status</h4>
       <div id="choreBox">
         <div class="shimmer shimmer-title"></div>
         <div class="shimmer shimmer-text"></div>
+      </div>
+    </div>
+
+    <div class="card" style="cursor: pointer;" onclick="window.location.href='/calendar'" id="eventCard">
+      <h4>Event Status</h4>
+      <div id="eventBox">
+        <div class="shimmer shimmer-title"></div>
+        <div class="shimmer shimmer-text"></div>
+      </div>
+    </div>
+
+    <div class="card" style="cursor: pointer;" onclick="window.location.href='/my_groups'" id="groupCard">
+      <h4>Groups</h4>
+      <div id="groupBox">
+        <div class="shimmer shimmer-title"></div>
         <div class="shimmer shimmer-text"></div>
       </div>
     </div>
@@ -45,47 +73,114 @@ if (!groupName) {
   document.getElementById("main-grid").style.display = "grid";
   async function loadAll() {
     try {
-      // Rent
-      const rent = await apiGet(`/rent-status?group_name=${groupName}`);
-      if (rent.error) {
-        document.getElementById("rentBox").innerHTML = `<div class="small text-muted">${rent.error}</div>`;
+      // Load all data in parallel for faster loading
+      const userId = sessionStorage.getItem("user_id");
+      const [bills, chores, calendar, groups] = await Promise.all([
+        apiGet(`/api/groups/${groupName}/bills`).catch(() => ({ error: null })),
+        apiGet(`/groups/${groupName}/chores`).catch(() => ({ chores: [] })),
+        apiGet(`/api/groups/${groupName}/calendar`).catch(() => ([])),
+        userId ? apiGet(`/groups?roommate_id=${userId}`).catch(() => ([])) : Promise.resolve([])
+      ]);
+
+      // Bills Status - Show overdue count and due soon
+      const billBox = document.getElementById("billBox");
+      if (bills.error) {
+        billBox.innerHTML = `<div class="small text-muted">${bills.error}</div>`;
       } else {
-        document.getElementById("rentBox").innerHTML = `
-          <div class="small" style="margin-bottom: 0.5rem;">Total: <strong>$${rent.total_rent}</strong></div>
-          <div class="small" style="margin-bottom: 0.5rem;">Due: ${rent.due_date}</div>
-          <div style="margin-bottom: 0.5rem;">Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : rent.status === 'OK' ? 'ok' : 'warn'}">${rent.status}</span></div>
-          ${rent.notification ? `<div class="small text-muted">${rent.notification}</div>` : ''}
-        `;
+        const unpaidBills = bills.bills ? bills.bills.filter(b => !b.paid) : [];
+        const overdueCount = bills.overdue_count || 0;
+        const dueSoonCount = bills.due_soon_count || 0;
+        const totalUnpaid = unpaidBills.length;
+        
+        let html = '';
+        if (totalUnpaid === 0) {
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All bills paid ✅</div>`;
+        } else {
+          const overdueText = overdueCount > 0 ? `${overdueCount} overdue` : '';
+          const dueSoonText = dueSoonCount > 0 ? `${dueSoonCount} due soon` : '';
+          const statusText = [overdueText, dueSoonText].filter(Boolean).join(', ') || `${totalUnpaid} pending`;
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: ${overdueCount > 0 ? '#dc2626' : '#2563eb'};">${statusText}</div>`;
+        }
+        billBox.innerHTML = html;
       }
 
-      // Supplies
-      const supplies = await apiGet(`/supplies-status?group_name=${groupName}`);
-      const sBox = document.getElementById("supplyBox");
-      if (supplies && supplies.low_items && supplies.low_items.length) {
-        sBox.innerHTML = supplies.low_items.map(i => `<div class="label warn" style="margin-bottom: 0.5rem; display: inline-block; margin-right: 0.5rem;">${i.item} – LOW SOON</div>`).join("");
-      } else {
-        sBox.innerHTML = `<div class="small text-muted">All supplies look good</div>`;
-      }
-
-      // Chores
-      const chores = await apiGet(`/groups/${groupName}/chores`);
+      // Chore Status - Show overdue count and pending
       const cBox = document.getElementById("choreBox");
-      if (!chores || !chores.chores || chores.chores.length===0) {
-        cBox.innerHTML = `<div class="small text-muted">No chores scheduled</div>`;
+      if (!chores || !chores.chores || chores.chores.length === 0) {
+        cBox.innerHTML = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done ✅</div>`;
       } else {
-        cBox.innerHTML = chores.chores.filter(c => c.status !== 'completed').slice(0,5).map(c => `
-          <div class="chore-row">
-            <div class="chore-meta">
-              <div><b>${c.task}</b><div class="small text-muted">Assigned: ${c.assigned_to}</div></div>
-            </div>
-            <div class="right">
-              <span class="${c.status === 'OVERDUE' ? 'overdue' : 'warn'}">${c.status}</span>
-            </div>
-          </div>
-        `).join("");
+        const pendingChores = chores.chores.filter(c => c.status !== 'completed');
+        const overdueChores = pendingChores.filter(c => c.status === 'OVERDUE');
+        const dueSoonChores = pendingChores.filter(c => {
+          if (c.status === 'OVERDUE' || c.status === 'completed') return false;
+          if (!c.due_date) return false;
+          const dueDate = new Date(c.due_date.split('T')[0] || c.due_date);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const daysUntil = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+          return daysUntil >= 0 && daysUntil <= 7;
+        });
+        
+        const count = pendingChores.length;
+        let html = '';
+        if (count === 0) {
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done ✅</div>`;
+        } else {
+          const overdueText = overdueChores.length > 0 ? `${overdueChores.length} overdue` : '';
+          const dueSoonText = dueSoonChores.length > 0 ? `${dueSoonChores.length} due this week` : '';
+          const statusText = [overdueText, dueSoonText].filter(Boolean).join(', ') || `${count} pending`;
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: ${overdueChores.length > 0 ? '#dc2626' : '#2563eb'};">${statusText}</div>`;
+        }
+        cBox.innerHTML = html;
       }
+
+      // Event Status - Show upcoming events
+      const eventBox = document.getElementById("eventBox");
+      if (calendar.error) {
+        eventBox.innerHTML = `<div class="small text-muted">${calendar.error}</div>`;
+      } else {
+        const events = calendar || [];
+        const customEvents = events.filter(e => e.type === 'event');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const weekFromNow = new Date(today);
+        weekFromNow.setDate(weekFromNow.getDate() + 7);
+        
+        const upcomingEvents = customEvents.filter(e => {
+          if (!e.start_datetime && !e.start && !e.date) return false;
+          const eventDate = e.start_datetime || e.start || e.date;
+          const dateStr = eventDate.split('T')[0] || eventDate.split(' ')[0];
+          const eventDateObj = new Date(dateStr);
+          return eventDateObj >= today && eventDateObj <= weekFromNow;
+        });
+        
+        let html = '';
+        if (upcomingEvents.length === 0) {
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All tasks done ✅</div>`;
+        } else if (upcomingEvents.length === 1) {
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">1 event this week</div>`;
+        } else {
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">${upcomingEvents.length} events this week</div>`;
+        }
+        eventBox.innerHTML = html;
+      }
+
+      // Groups Status
+      const groupBox = document.getElementById("groupBox");
+      const groupList = Array.isArray(groups) ? groups : [];
+      const count = groupList.length;
+      let html = '';
+      if (count === 0) {
+        html = `<div style="font-size: 1.25rem; font-weight: 600; color: #475569;">No groups</div>`;
+      } else if (count === 1) {
+        html = `<div style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">1 group</div>`;
+      } else {
+        html = `<div style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">${count} groups</div>`;
+      }
+      groupBox.innerHTML = html;
 
     } catch (err) {
+      console.error('Dashboard load error:', err);
       showToast(err.message || "Could not load dashboard", "error");
     }
   }
