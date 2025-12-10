@@ -97,6 +97,7 @@ async function apiFetch(path, opts = {}) {
 }
 async function apiGet(path) { return apiFetch(path, { method: "GET" }); }
 async function apiPost(path, body) { return apiFetch(path, { method: "POST", body: JSON.stringify(body) }); }
+async function apiPostFormData(path, formData) { return apiFetch(path, { method: "POST", body: formData }); }
 async function apiPatch(path, body) { return apiFetch(path, { method: "PATCH", body: JSON.stringify(body) }); }
 async function apiDelete(path) { return apiFetch(path, { method: "DELETE" }); }
 
