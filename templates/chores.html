@@ -39,14 +39,17 @@
           <option value="monthly">Every month</option>
         </select>
       </div>
+      <div class="input-field">
+        <label>Photo / Video of Chore (optional)</label>
+        <input id="add_media" type="file" accept="image/*,video/*" capture="environment">
+        <div id="add_media_preview" style="margin-top: 8px; display: none;">
+          <img id="add_media_preview_img" style="max-width: 100%; max-height: 200px; border-radius: 4px;" />
+          <video id="add_media_preview_video" style="max-width: 100%; max-height: 200px; border-radius: 4px; display: none;" controls></video>
+        </div>
+      </div>
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-add-chore')">Cancel</button>
         <button class="btn" id="modal-add-chore-save-btn" onclick="submitAddChore()">Save</button>
-      </div>
-      <!-- Camera feature -->
-       <div class="input-field">
-        <label>Photo / Video of Chore (optional)</label>
-        <input id="add_media" type="file" accept="image/*,video/*" capture="environment">
       </div>
 
     </div>
@@ -120,11 +123,17 @@ function renderChores() {
   }
   container.innerHTML = choresCache.map(c => {
     const isCompleted = c.status === 'completed';
+    const mediaHtml = c.media_url ? 
+      (c.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 
+        `<img src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; display: block;" alt="Chore media" />` :
+        `<video src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; display: block;" controls></video>`
+      ) : '';
     return `
     <div class="chore-row">
       <div>
         <div><b>${c.task}</b></div>
         <div class="small text-muted">Assigned: ${c.assigned_to} • Due: ${c.due_date}</div>
+        ${mediaHtml}
       </div>
       <div class="row">
         <span class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : 'warn'}">${c.status}</span>
@@ -141,23 +150,64 @@ function openAddChoreModal() {
   setModalField('modal-add-chore', '#add_assigned', '');
   setModalField('modal-add-chore', '#add_due', '');
   document.getElementById('add_recurring').value = '';
+  document.getElementById('add_media').value = '';
+  document.getElementById('add_media_preview').style.display = 'none';
+  document.getElementById('add_media_preview_img').src = '';
+  document.getElementById('add_media_preview_video').src = '';
   // Reset button state when opening modal
   const btn = document.getElementById('modal-add-chore-save-btn');
   if (btn) setButtonLoading(btn, false);
   openModal('modal-add-chore');
 }
 
+// Preview media when file is selected
+document.addEventListener('DOMContentLoaded', function() {
+  const mediaInput = document.getElementById('add_media');
+  if (mediaInput) {
+    mediaInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) {
+        document.getElementById('add_media_preview').style.display = 'none';
+        return;
+      }
+      
+      const preview = document.getElementById('add_media_preview');
+      const previewImg = document.getElementById('add_media_preview_img');
+      const previewVideo = document.getElementById('add_media_preview_video');
+      
+      preview.style.display = 'block';
+      
+      if (file.type.startsWith('image/')) {
+        previewImg.style.display = 'block';
+        previewVideo.style.display = 'none';
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImg.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type.startsWith('video/')) {
+        previewImg.style.display = 'none';
+        previewVideo.style.display = 'block';
+        previewVideo.src = URL.createObjectURL(file);
+      }
+    });
+  }
+});
+
 async function submitAddChore() {
   const task = document.getElementById('add_task').value.trim();
   const assigned = document.getElementById('add_assigned').value.trim();
   const due = document.getElementById('add_due').value;
   const recurring = document.getElementById('add_recurring').value;
+  const mediaFile = document.getElementById('add_media').files[0];
+
   
   if (!task || !due) return showToast("Task and due date required", "error");
   
   const groupName = getGroupName();
   const btn = document.getElementById('modal-add-chore-save-btn');
-  
+  if (!btn) return;
+
   // Map recurring option to frequency_days
   const frequencyMap = {
     "daily": 1,
@@ -170,17 +220,28 @@ async function submitAddChore() {
   const is_recurring = recurring !== "";
   const frequency_days = frequencyMap[recurring] || 0;
   
-  if (!btn) return;
-  
   setButtonLoading(btn, true);
   try {
-    await apiPost(`/groups/${groupName}/chores`, { 
-      task, 
-      assigned_to: assigned, 
-      due_date: due, 
-      is_recurring,
-      frequency_days
-    });
+    // Use FormData if there's a media file, otherwise use JSON
+    if (mediaFile) {
+      const formData = new FormData();
+      formData.append('task', task);
+      formData.append('assigned_to', assigned);
+      formData.append('due_date', due);
+      formData.append('is_recurring', is_recurring);
+      formData.append('frequency_days', frequency_days);
+      formData.append('media', mediaFile);
+      
+      await apiPostFormData(`/groups/${groupName}/chores`, formData);
+    } else {
+      await apiPost(`/groups/${groupName}/chores`, { 
+        task, 
+        assigned_to: assigned, 
+        due_date: due, 
+        is_recurring,
+        frequency_days
+      });
+    }
     setButtonLoading(btn, false); // Reset button state BEFORE closing modal
     closeModal('modal-add-chore');
     showToast("Chore added", "success");
@@ -191,7 +252,7 @@ async function submitAddChore() {
   }
 }
 
-/* Confirm complete flow */
+/* Confirm flow */
 let pendingCompleteId = null;
 function confirmComplete(id) {
   pendingCompleteId = id;
