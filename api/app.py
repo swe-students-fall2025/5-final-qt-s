@@ -2,6 +2,8 @@
 from flask import Flask, request, jsonify, render_template, send_from_directory
 from pymongo import MongoClient
 import os
+import time
+from werkzeug.utils import secure_filename
 from service.logic import analyze_supplies, analyze_rent
 from api.utils import to_json
 
@@ -92,19 +94,61 @@ def chores_route(group_name):
         data = analyze_chores(db, group_name)
         return jsonify(data), 200
     else:  # POST
-        data = request.json
-        required_fields = ["task", "due_date"]
-        if not all(field in data for field in required_fields):
-            return jsonify({"error": "Missing required fields: task, due_date"}), 400
+        # Handle both JSON and FormData requests
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            # Handle file upload
+            required_fields = ["task", "due_date"]
+            if not all(field in request.form for field in required_fields):
+                return jsonify({"error": "Missing required fields: task, due_date"}), 400
+            
+            task = request.form["task"]
+            assigned_to = request.form.get("assigned_to", "")
+            due_date = request.form["due_date"]
+            is_recurring = request.form.get("is_recurring", "False").lower() == "true"
+            frequency_days = int(request.form.get("frequency_days", 7))
+            media_file = request.files.get("media")
+            
+            media_url = None
+            if media_file and media_file.filename:
+                # Create uploads directory if it doesn't exist
+                uploads_dir = os.path.join(PROJECT_ROOT, "static", "uploads", "chores")
+                os.makedirs(uploads_dir, exist_ok=True)
+                
+                # Generate secure filename
+                filename = secure_filename(media_file.filename)
+                # Add timestamp to avoid conflicts
+                timestamp = int(time.time() * 1000)
+                name, ext = os.path.splitext(filename)
+                filename = f"{name}_{timestamp}{ext}"
+                
+                filepath = os.path.join(uploads_dir, filename)
+                media_file.save(filepath)
+                
+                # Store relative URL for serving
+                media_url = f"/static/uploads/chores/{filename}"
+        else:
+            # Handle JSON request
+            data = request.json
+            required_fields = ["task", "due_date"]
+            if not all(field in data for field in required_fields):
+                return jsonify({"error": "Missing required fields: task, due_date"}), 400
+            
+            task = data["task"]
+            assigned_to = data.get("assigned_to", "")
+            due_date = data["due_date"]
+            is_recurring = data.get("is_recurring", False)
+            frequency_days = data.get("frequency_days", 7)
+            media_url = None
         
         chore = {
-            "task": data["task"],
-            "assigned_to": data.get("assigned_to", ""),
-            "due_date": data["due_date"],
+            "task": task,
+            "assigned_to": assigned_to,
+            "due_date": due_date,
             "group_name": group_name,
             "status": "pending",
-            "is_recurring": data.get("is_recurring", False),
-            "frequency_days": data.get("frequency_days", 7)
+            "is_recurring": is_recurring,
+            "frequency_days": frequency_days,
+            "media_url": media_url
         }
         
         result = db.chores.insert_one(chore)
