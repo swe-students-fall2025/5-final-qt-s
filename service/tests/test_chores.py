@@ -1,22 +1,33 @@
 import pytest
 from unittest.mock import MagicMock
 from service.logic import mark_chore_complete
+from bson import ObjectId
 
 @pytest.fixture
 def mock_db():
     return MagicMock()
 
 def test_rotation_logic(mock_db):
+    mock_db = MagicMock()
+    id_alissa = ObjectId()
+    id_khusboo = ObjectId()
+    id_reece = ObjectId()
+
     fake_chore_id = "507f1f77bcf86cd799439011" 
     
     fake_chore_doc = {
-        "_id": fake_chore_id,
+        "_id": ObjectId(fake_chore_id),
         "task": "Trash",
         "group_name": "Apt A",
-        "assigned_to": "Reece",
+        "assigned_to": "Reece", 
         "is_recurring": True,
         "frequency_days": 7,
         "due_date": "2025-12-01"
+    }
+
+    fake_group_doc = {
+        "name": "Apt A",
+        "roommates": [id_alissa, id_khusboo, id_reece] 
     }
     
     fake_roommates = [
@@ -26,7 +37,19 @@ def test_rotation_logic(mock_db):
     ]
 
     mock_db.chores.find_one.return_value = fake_chore_doc
-    mock_db.roommates.find.return_value = fake_roommates
+    mock_db.groups.find_one.return_value = fake_group_doc
+
+    def get_user(query):
+        user_id = query.get("_id")
+        if user_id == id_alissa:
+            return {"_id": id_alissa, "username": "Alissa"}
+        elif user_id == id_khusboo:
+            return {"_id": id_khusboo, "username": "Khusboo"}
+        elif user_id == id_reece:
+            return {"_id": id_reece, "username": "Reece"}
+        return None
+        
+    mock_db.users.find_one.side_effect = get_user
 
     result = mark_chore_complete(mock_db, fake_chore_id)
 
