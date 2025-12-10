@@ -234,3 +234,82 @@ function initFullCalendar(domElId, fetchEventsCallback) {
   calendar.render();
   return calendar;
 }
+/* ---------- Stats & Leaderboard Logic ---------- */
+
+function showStats() {
+  const statsSection = document.getElementById('statsSection');
+  if (statsSection) {
+    statsSection.style.display = 'block';
+    statsSection.scrollIntoView({ behavior: 'smooth' });
+    loadLeaderboard(); 
+  }
+}
+
+function hideStats() {
+  const statsSection = document.getElementById('statsSection');
+  if (statsSection) {
+    statsSection.style.display = 'none';
+  }
+}
+
+async function loadLeaderboard() {
+    const groupName = getGroupName();
+    if (!groupName) return;
+
+    const container = document.getElementById("leaderboard-container");
+    const totalEl = document.getElementById("stat-total-chores");
+    const topEl = document.getElementById("stat-top-performer");
+    
+    if (!container) return;
+
+    try {
+        const data = await apiGet(`/groups/${groupName}/leaderboard`);
+        
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center small">No data yet</div>';
+            if(totalEl) totalEl.innerText = "0";
+            if(topEl) topEl.innerText = "--";
+            return;
+        }
+
+        const totalChores = data.reduce((sum, player) => sum + player.count, 0);
+        if(totalEl) totalEl.innerText = totalChores;
+        
+        if(topEl) topEl.innerText = data[0].name;
+
+        const maxScore = data[0].count; 
+        let html = '';
+        
+        data.forEach((player, index) => {
+            const widthPercent = (player.count / maxScore) * 100;
+            
+            let icon = `<span style="width:20px; display:inline-block; text-align:center; opacity:0.5; font-size:0.8em;">${index + 1}</span>`;
+            if (index === 0) icon = '🥇';
+            if (index === 1) icon = '🥈';
+            if (index === 2) icon = '🥉';
+            
+            let barColor = 'var(--secondary)'; 
+            if (index === 0) barColor = '#fbbf24'; 
+            if (index === 1) barColor = '#94a3b8'; 
+            if (index === 2) barColor = '#b45309'; 
+            
+            html += `
+            <div style="margin-bottom: 12px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.9rem; margin-bottom:4px; font-weight:500;">
+                    <div>${icon} ${player.name}</div>
+                    <div>${player.count}</div>
+                </div>
+                <div style="background: var(--surface-secondary); height: 8px; border-radius: 4px; overflow: hidden;">
+                    <div style="width: ${widthPercent}%; background: ${barColor}; height: 100%; border-radius: 4px; transition: width 0.5s ease;"></div>
+                </div>
+            </div>
+            `;
+        });
+        
+        container.innerHTML = html;
+
+    } catch (err) {
+        console.error("Stats error", err);
+        container.innerHTML = '<div class="text-danger small">Error loading stats</div>';
+    }
+}
