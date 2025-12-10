@@ -4,9 +4,244 @@
   <div class="container">
   <h2>Rent & Bills</h2>
 
+  <!-- Group Selection Section -->
+  <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="row" style="align-items: center;">
+      <div style="flex: 1;">
+        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 4px;">Current Group</div>
+        <div style="font-size: 1.25rem; font-weight: 600;" id="groupNameDisplay">Select a group</div>
+      </div>
+      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none;">
+        Change Group
+      </button>
+    </div>
+  </div>
+
+  <!-- Notifications Banner -->
+  <div id="notificationsBanner" style="margin-bottom: 16px;"></div>
+
+  <!-- Add Bill Button -->
+  <div class="card" style="margin-bottom: 16px;">
+    <button class="btn" onclick="openAddBillModal()" style="width: 100%;">+ Add New Bill</button>
+  </div>
+
+  <!-- Bills List -->
   <div id="billBox"></div>
 
-  <!-- Edit rent modal -->
+  <!-- Add Bill Modal -->
+  <div id="modal-add-bill-backdrop" class="modal-backdrop">
+    <div class="modal" style="max-width: 600px;">
+      <h3>Add Bill</h3>
+      <div class="input-field">
+        <label>Bill Name</label>
+        <input id="add_bill_name" class="input" placeholder="e.g., Rent, Internet, Electricity">
+      </div>
+      <div class="input-field">
+        <label>Amount ($)</label>
+        <input id="add_bill_amount" class="input" type="number" step="0.01" placeholder="0.00">
+      </div>
+      <div class="input-field">
+        <label>Due Date</label>
+        <input type="date" id="add_bill_due" class="input">
+      </div>
+      <div class="input-field">
+        <label>Category</label>
+        <select id="add_bill_category" class="input">
+          <option value="rent">Rent</option>
+          <option value="utilities">Utilities</option>
+          <option value="internet">Internet</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Assigned To (Who This Bill Belongs To)</label>
+        <select id="add_bill_assigned_to" class="input">
+          <option value="">Select a person...</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Recurring?</label>
+        <select id="add_bill_recurring" class="input" onchange="toggleRecurringOptions()">
+          <option value="">Not recurring</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div id="custom_recurring_options" style="display: none;">
+        <div class="input-field">
+          <label>Custom Days Between Bills</label>
+          <input id="add_bill_custom_days" class="input" type="number" placeholder="e.g., 45" min="1">
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Notification Frequency</label>
+        <select id="add_bill_notification_freq" class="input">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div id="custom_notification_options" style="display: none;">
+        <div class="input-field">
+          <label>Custom Days Before Due Date to Notify</label>
+          <input id="add_bill_notification_days" class="input" type="number" placeholder="e.g., 7" min="0">
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Who Can See This Bill?</label>
+        <select id="add_bill_visibility" class="input" onchange="updateVisibilityCheckboxes('add')">
+          <option value="only_me">Only Me</option>
+          <option value="all">All Team</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Select Members Who Can See This Bill</label>
+        <div id="add_bill_members_list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+          <div class="small text-muted">Loading members...</div>
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Who Can Edit This Bill?</label>
+        <select id="add_bill_editable" class="input" onchange="updateEditPermissionsCheckboxes('add')">
+          <option value="only_me">Only Me</option>
+          <option value="all">All Team</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Select Members Who Can Edit This Bill</label>
+        <div id="add_bill_editable_list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+          <div class="small text-muted">Loading members...</div>
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Who Can Delete This Bill?</label>
+        <select id="add_bill_deletable" class="input" onchange="updateDeletePermissionsCheckboxes('add')">
+          <option value="only_me">Only Me</option>
+          <option value="all">All Team</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Select Members Who Can Delete This Bill</label>
+        <div id="add_bill_deletable_list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+          <div class="small text-muted">Loading members...</div>
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Notes (optional)</label>
+        <textarea id="add_bill_notes" class="input" rows="3" placeholder="Additional notes..."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-add-bill')">Cancel</button>
+        <button class="btn" onclick="submitAddBill()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Bill Modal -->
+  <div id="modal-edit-bill-backdrop" class="modal-backdrop">
+    <div class="modal" style="max-width: 600px;">
+      <h3>Edit Bill</h3>
+      <div class="input-field">
+        <label>Bill Name</label>
+        <input id="edit_bill_name" class="input">
+      </div>
+      <div class="input-field">
+        <label>Amount ($)</label>
+        <input id="edit_bill_amount" class="input" type="number" step="0.01">
+      </div>
+      <div class="input-field">
+        <label>Due Date</label>
+        <input type="date" id="edit_bill_due" class="input">
+      </div>
+      <div class="input-field">
+        <label>Category</label>
+        <select id="edit_bill_category" class="input">
+          <option value="rent">Rent</option>
+          <option value="utilities">Utilities</option>
+          <option value="internet">Internet</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Assigned To (Who This Bill Belongs To)</label>
+        <select id="edit_bill_assigned_to" class="input">
+          <option value="">Select a person...</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Recurring?</label>
+        <select id="edit_bill_recurring" class="input" onchange="toggleRecurringOptionsEdit()">
+          <option value="">Not recurring</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div id="edit_custom_recurring_options" style="display: none;">
+        <div class="input-field">
+          <label>Custom Days Between Bills</label>
+          <input id="edit_bill_custom_days" class="input" type="number" placeholder="e.g., 45" min="1">
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Notification Frequency</label>
+        <select id="edit_bill_notification_freq" class="input" onchange="toggleNotificationOptionsEdit()">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Bi-weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div id="edit_custom_notification_options" style="display: none;">
+        <div class="input-field">
+          <label>Custom Days Before Due Date to Notify</label>
+          <input id="edit_bill_notification_days" class="input" type="number" placeholder="e.g., 7" min="0">
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Who Can See This Bill?</label>
+        <select id="edit_bill_visibility" class="input" onchange="updateVisibilityCheckboxes('edit')">
+          <option value="only_me">Only Me</option>
+          <option value="all">All Team</option>
+        </select>
+      </div>
+      <div class="input-field">
+        <label>Select Members Who Can See This Bill</label>
+        <div id="edit_bill_members_list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+          <div class="small text-muted">Loading members...</div>
+        </div>
+      </div>
+      <div class="input-field">
+        <label>Notes (optional)</label>
+        <textarea id="edit_bill_notes" class="input" rows="3"></textarea>
+      </div>
+      <div class="input-field">
+        <label>
+          <input type="checkbox" id="edit_bill_paid" style="margin-right: 8px;">
+          Mark as Paid
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn secondary" onclick="closeModal('modal-edit-bill')">Cancel</button>
+        <button class="btn" onclick="submitEditBill()">Save</button>
+        <button id="edit_bill_delete_btn" class="btn" style="background: var(--error); display: none;" onclick="confirmDeleteBill()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Rent Modal (kept for backward compatibility) -->
   <div id="modal-edit-rent-backdrop" class="modal-backdrop">
     <div class="modal">
       <h3>Edit Rent</h3>
@@ -21,47 +256,940 @@
 {% endblock %}
 {% block scripts %}
 <script>
-async function loadRent() {
-  const g = getGroupName();
-  if (!g) { document.getElementById("billBox").innerHTML = "<div class='card small'>Select a group first</div>"; return; }
+// Ensure group name is set on page load
+const currentGroupName = getGroupName();
+if (!currentGroupName || currentGroupName === "null" || currentGroupName === "undefined") {
+  if (window.location.pathname === "/bills") {
+    showToast("Please select a group first", "error");
+    setTimeout(() => window.location.href = "/my_groups", 2000);
+  }
+}
+document.getElementById("groupNameDisplay").innerText = currentGroupName || "(no group)";
+
+let editingBillId = null;
+
+async function loadBills() {
+  const groupName = getGroupName();
+  const billBox = document.getElementById("billBox");
+  const notificationsBanner = document.getElementById("notificationsBanner");
+  
+  if (!groupName || groupName === "null" || groupName === "undefined") {
+    billBox.innerHTML = "<div class='card small'>Please select a group first. Go to <a href='/my_groups'>My Groups</a> and click 'Enter' on a group.</div>";
+    notificationsBanner.innerHTML = "";
+    document.getElementById("groupNameDisplay").innerText = "(no group selected)";
+    return;
+  }
+  
+  document.getElementById("groupNameDisplay").innerText = groupName;
+  
+  billBox.innerHTML = `
+    <div class="card">
+      <div class="shimmer shimmer-title" style="width: 200px; margin-bottom: 8px;"></div>
+      <div class="shimmer shimmer-title" style="width: 150px;"></div>
+    </div>
+  `;
+  
   try {
-    const rent = await apiGet(`/rent-status?group_name=${g}`);
-    if (rent.error) return document.getElementById("billBox").innerText = rent.error;
-    document.getElementById("billBox").innerHTML = `
-      <div class="card">
-        <h4>Rent</h4>
-        <div>Total: $${rent.total_rent}</div>
-        <div>Due: ${rent.due_date}</div>
-        <div>Status: <span class="${rent.status === 'OVERDUE' ? 'overdue' : ''}">${rent.status}</span></div>
-        <div class="space"></div>
-        <button class="btn" onclick="openEditRentModal('${rent.total_rent}','${rent.due_date}')">Edit Rent</button>
+    const data = await apiGet(`/groups/${groupName}/bills`);
+    const bills = data.bills || [];
+    const overdueCount = data.overdue_count || 0;
+    const dueSoonCount = data.due_soon_count || 0;
+    const totalUnpaid = data.total_unpaid || 0;
+    const currentUserId = sessionStorage.getItem("user_id");
+    
+    // Show notifications banner
+    let notificationHtml = "";
+    if (overdueCount > 0 || dueSoonCount > 0) {
+      notificationHtml = '<div class="card" style="background: ';
+      if (overdueCount > 0) {
+        notificationHtml += '#fef2f2; border-left: 4px solid var(--error);">';
+        notificationHtml += `<div style="color: var(--error); font-weight: 600; margin-bottom: 4px;">⚠️ ${overdueCount} Bill${overdueCount > 1 ? 's' : ''} OVERDUE!</div>`;
+      } else {
+        notificationHtml += '#fff7ed; border-left: 4px solid var(--warning);">';
+        notificationHtml += `<div style="color: var(--warning); font-weight: 600; margin-bottom: 4px;">⏰ ${dueSoonCount} Bill${dueSoonCount > 1 ? 's' : ''} Due Soon</div>`;
+      }
+      notificationHtml += `<div class="small text-muted">Total unpaid: $${totalUnpaid.toFixed(2)}</div>`;
+      notificationHtml += '</div>';
+    }
+    notificationsBanner.innerHTML = notificationHtml;
+    
+    if (bills.length === 0) {
+      billBox.innerHTML = "<div class='card small text-muted'>No bills yet. Click 'Add New Bill' to get started!</div>";
+      return;
+    }
+    
+    // Separate paid and unpaid bills
+    const unpaidBills = bills.filter(b => !b.paid);
+    const paidBills = bills.filter(b => b.paid);
+    
+    let html = "";
+    
+    // Unpaid bills section
+    if (unpaidBills.length > 0) {
+      html += '<div style="margin-bottom: 24px;"><h3 style="margin-bottom: 16px;">Unpaid Bills</h3>';
+      html += unpaidBills.map(bill => {
+        const statusClass = bill.status === 'OVERDUE' ? 'overdue' : bill.status === 'DUE_SOON' ? 'warn' : '';
+        const statusBadge = bill.status === 'OVERDUE' ? 
+          '<span class="overdue" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">OVERDUE</span>' :
+          bill.status === 'DUE_SOON' ?
+          '<span class="warn" style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">DUE SOON</span>' :
+          '<span style="padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; color: var(--secondary);">PENDING</span>';
+        
+        const categoryIcon = {
+          'rent': '🏠',
+          'utilities': '⚡',
+          'internet': '📶',
+          'other': '📄'
+        }[bill.category] || '📄';
+        
+        return `
+          <div class="card" style="margin-bottom: 12px; ${bill.status === 'OVERDUE' ? 'background: #fef2f2; border-left: 4px solid var(--error);' : bill.status === 'DUE_SOON' ? 'background: #fff7ed; border-left: 4px solid var(--warning);' : ''}">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span style="font-size: 1.2rem;">${categoryIcon}</span>
+                  <h4 style="margin: 0;">${bill.name}</h4>
+                </div>
+                <div class="small text-muted">Due: ${bill.due_date}</div>
+                ${bill.assigned_to_username ? `<div class="small text-muted" style="margin-top: 4px;">👤 Belongs to: <strong>${bill.assigned_to_username}</strong></div>` : bill.assigned_to ? `<div class="small text-muted" style="margin-top: 4px;">👤 Assigned to: ${bill.assigned_to}</div>` : ''}
+                ${bill.notification ? `<div class="small" style="color: ${bill.status === 'OVERDUE' ? 'var(--error)' : 'var(--warning)'}; margin-top: 4px; font-weight: 600;">${bill.notification}</div>` : ''}
+                ${bill.is_recurring ? `<div class="small" style="color: var(--primary); margin-top: 4px;">🔄 Recurring: ${bill.recurring_frequency || 'Custom'}</div>` : ''}
+                ${bill.visibility === 'all' ? `<div class="small text-muted" style="margin-top: 4px;">👥 Visible to all team members</div>` : bill.visibility === 'only_me' ? `<div class="small text-muted" style="margin-top: 4px;">👤 Visible to you only</div>` : bill.visible_to ? `<div class="small text-muted" style="margin-top: 4px;">👤 Visible to ${bill.visible_to.length} selected member(s)</div>` : ''}
+                ${bill.notes ? `<div class="small text-muted" style="margin-top: 4px;">${bill.notes}</div>` : ''}
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">$${bill.amount.toFixed(2)}</div>
+                ${statusBadge}
+              </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+              ${canEditBill(bill, currentUserId) ? `<button class="btn secondary" onclick="openEditBillModal('${bill.id}')">Edit</button>` : ''}
+              ${canDeleteBill(bill, currentUserId) ? `<button class="btn" style="background: var(--error);" onclick="confirmDeleteBill('${bill.id}')">Delete</button>` : ''}
+              ${canMarkAsPaid(bill, currentUserId) ? `<button class="btn" onclick="markBillPaid('${bill.id}')">Mark as Paid</button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+      html += '</div>';
+    }
+    
+    // Paid bills section
+    if (paidBills.length > 0) {
+      html += '<div><h3 style="margin-bottom: 16px;">Paid Bills</h3>';
+      html += paidBills.map(bill => {
+        const categoryIcon = {
+          'rent': '🏠',
+          'utilities': '⚡',
+          'internet': '📶',
+          'other': '📄'
+        }[bill.category] || '📄';
+        
+        return `
+          <div class="card" style="margin-bottom: 12px; background: #f0fdf4; border-left: 4px solid var(--success);">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                  <span style="font-size: 1.2rem;">${categoryIcon}</span>
+                  <h4 style="margin: 0;">${bill.name}</h4>
+                  <span style="color: var(--success); font-weight: 600;">✓</span>
+                </div>
+                <div class="small text-muted">Paid: ${bill.paid_at ? new Date(bill.paid_at).toLocaleDateString() : 'Unknown'}</div>
+                ${bill.assigned_to_username ? `<div class="small text-muted" style="margin-top: 4px;">👤 Belonged to: <strong>${bill.assigned_to_username}</strong></div>` : bill.assigned_to ? `<div class="small text-muted" style="margin-top: 4px;">👤 Assigned to: ${bill.assigned_to}</div>` : ''}
+                ${bill.paid_by ? `<div class="small text-muted">Paid by: ${bill.paid_by}</div>` : ''}
+              </div>
+              <div style="text-align: right;">
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--success);">$${bill.amount.toFixed(2)}</div>
+                <span style="color: var(--success); font-size: 0.75rem;">PAID</span>
+              </div>
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 8px;">
+              ${canEditBill(bill, currentUserId) ? `<button class="btn secondary" onclick="openEditBillModal('${bill.id}')">View/Edit</button>` : ''}
+              ${canDeleteBill(bill, currentUserId) ? `<button class="btn" style="background: var(--error);" onclick="confirmDeleteBill('${bill.id}')">Delete</button>` : ''}
+            </div>
       </div>
     `;
-  } catch (err) { showToast(err.message || "Could not load rent", "error"); }
-}
-
-function openEditRentModal(amount, due) {
-  setModalField('modal-edit-rent', '#editRentAmount', amount);
-  setModalField('modal-edit-rent', '#editRentDue', due);
-  openModal('modal-edit-rent');
-}
-
-async function submitEditRent() {
-  const amount = document.getElementById('editRentAmount').value;
-  const due = document.getElementById('editRentDue').value;
-  const g = getGroupName();
-  if (!g) return showToast("No group selected", "error");
-  try {
-    await apiPatch(`/groups/${g}/rent`, { total_rent: amount, due_date: due });
-    closeModal('modal-edit-rent');
-    showToast("Rent updated", "success");
-    loadRent();
+      }).join("");
+      html += '</div>';
+    }
+    
+    billBox.innerHTML = html;
   } catch (err) {
-    showToast(err.message || "Update failed", "error");
+    billBox.innerHTML = `<div class='card small'>Error: ${err.message || "Could not load bills"}</div>`;
+    showToast(err.message || "Could not load bills", "error");
   }
 }
 
-loadRent();
+function toggleRecurringOptions() {
+  const recurring = document.getElementById('add_bill_recurring').value;
+  const customDiv = document.getElementById('custom_recurring_options');
+  customDiv.style.display = recurring === 'custom' ? 'block' : 'none';
+}
+
+function toggleNotificationOptions() {
+  const freq = document.getElementById('add_bill_notification_freq').value;
+  const customDiv = document.getElementById('custom_notification_options');
+  customDiv.style.display = freq === 'custom' ? 'block' : 'none';
+}
+
+function toggleRecurringOptionsEdit() {
+  const recurring = document.getElementById('edit_bill_recurring').value;
+  const customDiv = document.getElementById('edit_custom_recurring_options');
+  customDiv.style.display = recurring === 'custom' ? 'block' : 'none';
+}
+
+function toggleNotificationOptionsEdit() {
+  const freq = document.getElementById('edit_bill_notification_freq').value;
+  const customDiv = document.getElementById('edit_custom_notification_options');
+  customDiv.style.display = freq === 'custom' ? 'block' : 'none';
+}
+
+function updateVisibilityCheckboxes(mode) {
+  const visibility = document.getElementById(`${mode}_bill_visibility`).value;
+  const membersList = document.getElementById(`${mode}_bill_members_list`);
+  const checkboxes = membersList.querySelectorAll(`.bill-member-checkbox${mode === 'edit' ? '-edit' : ''}`);
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (visibility === 'only_me') {
+    // Check only the creator
+    checkboxes.forEach(cb => {
+      cb.checked = cb.dataset.userId === currentUserId;
+    });
+  } else if (visibility === 'all') {
+    // Check all members
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+    });
+  }
+}
+
+function updateEditPermissionsCheckboxes(mode) {
+  const editable = document.getElementById(`${mode}_bill_editable`).value;
+  const membersList = document.getElementById(`${mode}_bill_editable_list`);
+  const checkboxes = membersList.querySelectorAll(`.bill-editable-checkbox${mode === 'edit' ? '-edit' : ''}`);
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (editable === 'only_me') {
+    checkboxes.forEach(cb => {
+      cb.checked = cb.dataset.userId === currentUserId;
+    });
+  } else if (editable === 'all') {
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+    });
+  }
+}
+
+function updateDeletePermissionsCheckboxes(mode) {
+  const deletable = document.getElementById(`${mode}_bill_deletable`).value;
+  const membersList = document.getElementById(`${mode}_bill_deletable_list`);
+  const checkboxes = membersList.querySelectorAll(`.bill-deletable-checkbox${mode === 'edit' ? '-edit' : ''}`);
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (deletable === 'only_me') {
+    checkboxes.forEach(cb => {
+      cb.checked = cb.dataset.userId === currentUserId;
+    });
+  } else if (deletable === 'all') {
+    checkboxes.forEach(cb => {
+      cb.checked = true;
+    });
+  }
+}
+
+function canEditBill(bill, currentUserId) {
+  // Assigned person can always edit
+  if (bill.assigned_to === currentUserId) {
+    return true;
+  }
+  
+  const editableVisibility = bill.editable_visibility || 'only_me';
+  const editableBy = bill.editable_by || [];
+  
+  if (editableVisibility === 'all') {
+    return true;
+  } else if (editableVisibility === 'only_me') {
+    return bill.created_by === currentUserId;
+  } else {
+    // custom - check if user is in editable_by list
+    return editableBy.includes(currentUserId);
+  }
+}
+
+function canDeleteBill(bill, currentUserId) {
+  // Assigned person can always delete
+  if (bill.assigned_to === currentUserId) {
+    return true;
+  }
+  
+  const deletableVisibility = bill.deletable_visibility || 'only_me';
+  const deletableBy = bill.deletable_by || [];
+  
+  if (deletableVisibility === 'all') {
+    return true;
+  } else if (deletableVisibility === 'only_me') {
+    return bill.created_by === currentUserId;
+  } else {
+    // custom - check if user is in deletable_by list
+    return deletableBy.includes(currentUserId);
+  }
+}
+
+function canMarkAsPaid(bill, currentUserId) {
+  // Assigned person can always mark as paid
+  return bill.assigned_to === currentUserId;
+}
+
+let groupMembersCache = [];
+
+async function loadGroupMembers() {
+  const groupName = getGroupName();
+  if (!groupName) return [];
+  
+  try {
+    // Get group members by group name
+    const data = await apiGet(`/groups/${groupName}/members`);
+    return data.members || [];
+  } catch (err) {
+    console.error("Error loading group members:", err);
+    return [];
+  }
+}
+
+async function populateMemberDropdowns() {
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  // Populate add bill dropdown
+  const addDropdown = document.getElementById('add_bill_assigned_to');
+  if (addDropdown) {
+    addDropdown.innerHTML = '<option value="">Select a person...</option>';
+    members.forEach(member => {
+      const option = document.createElement('option');
+      option.value = member.user_id;
+      option.textContent = member.username || member.email || member.user_id;
+      if (member.user_id === currentUserId) {
+        option.textContent += ' (You)';
+      }
+      addDropdown.appendChild(option);
+    });
+  }
+  
+  // Populate edit bill dropdown
+  const editDropdown = document.getElementById('edit_bill_assigned_to');
+  if (editDropdown) {
+    editDropdown.innerHTML = '<option value="">Select a person...</option>';
+    members.forEach(member => {
+      const option = document.createElement('option');
+      option.value = member.user_id;
+      option.textContent = member.username || member.email || member.user_id;
+      if (member.user_id === currentUserId) {
+        option.textContent += ' (You)';
+      }
+      editDropdown.appendChild(option);
+    });
+  }
+}
+
+async function loadMembersForAdd() {
+  const membersList = document.getElementById('add_bill_members_list');
+  membersList.innerHTML = '<div class="small text-muted">Loading members...</div>';
+  
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (members.length === 0) {
+    membersList.innerHTML = '<div class="small text-muted">No members found</div>';
+    return;
+  }
+  
+  // Show all members (including creator, but they can uncheck themselves if they want)
+  membersList.innerHTML = members.map(member => {
+    const isCurrentUser = member.user_id === currentUserId;
+    return `
+      <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; ${isCurrentUser ? 'background: #f0f9ff;' : ''}">
+        <input type="checkbox" class="bill-member-checkbox" data-user-id="${member.user_id}" ${isCurrentUser ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+        <span>${member.username || member.email || member.user_id}${isCurrentUser ? ' (You)' : ''}</span>
+      </label>
+    `;
+  }).join('');
+  
+  // Load editable and deletable members
+  await loadEditableMembersForAdd();
+  await loadDeletableMembersForAdd();
+}
+
+async function loadEditableMembersForAdd() {
+  const membersList = document.getElementById('add_bill_editable_list');
+  if (!membersList) return;
+  
+  membersList.innerHTML = '<div class="small text-muted">Loading members...</div>';
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (members.length === 0) {
+    membersList.innerHTML = '<div class="small text-muted">No members found</div>';
+    return;
+  }
+  
+  membersList.innerHTML = members.map(member => {
+    const isCurrentUser = member.user_id === currentUserId;
+    return `
+      <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; ${isCurrentUser ? 'background: #f0f9ff;' : ''}">
+        <input type="checkbox" class="bill-editable-checkbox" data-user-id="${member.user_id}" ${isCurrentUser ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+        <span>${member.username || member.email || member.user_id}${isCurrentUser ? ' (You)' : ''}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+async function loadDeletableMembersForAdd() {
+  const membersList = document.getElementById('add_bill_deletable_list');
+  if (!membersList) return;
+  
+  membersList.innerHTML = '<div class="small text-muted">Loading members...</div>';
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (members.length === 0) {
+    membersList.innerHTML = '<div class="small text-muted">No members found</div>';
+    return;
+  }
+  
+  membersList.innerHTML = members.map(member => {
+    const isCurrentUser = member.user_id === currentUserId;
+    return `
+      <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; ${isCurrentUser ? 'background: #f0f9ff;' : ''}">
+        <input type="checkbox" class="bill-deletable-checkbox" data-user-id="${member.user_id}" ${isCurrentUser ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+        <span>${member.username || member.email || member.user_id}${isCurrentUser ? ' (You)' : ''}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+async function loadMembersForEdit() {
+  const membersList = document.getElementById('edit_bill_members_list');
+  membersList.innerHTML = '<div class="small text-muted">Loading members...</div>';
+  
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  if (members.length === 0) {
+    membersList.innerHTML = '<div class="small text-muted">No members found</div>';
+    return;
+  }
+  
+  // Get current bill's visible_to list
+  const billId = editingBillId;
+  if (!billId) {
+    membersList.innerHTML = '<div class="small text-muted">No bill selected</div>';
+    return;
+  }
+  
+  try {
+    const bill = await apiGet(`/bills/${billId}`);
+    const visibleTo = bill.visible_to || [];
+    const visibility = bill.visibility || 'all';
+    
+    // If visibility is 'all', check all members. If 'only_me', check only creator. If 'custom', use visible_to list
+    const isAllVisible = visibility === 'all';
+    const isOnlyMe = visibility === 'only_me';
+    
+    membersList.innerHTML = members.map(member => {
+      const isCurrentUser = member.user_id === currentUserId;
+      let isChecked = false;
+      
+      if (isAllVisible) {
+        isChecked = true;
+      } else if (isOnlyMe) {
+        isChecked = isCurrentUser;
+      } else {
+        // Custom - check if in visible_to list
+        isChecked = visibleTo.includes(member.user_id);
+      }
+      
+      return `
+        <label style="display: flex; align-items: center; gap: 8px; padding: 8px; cursor: pointer; border-radius: 4px; margin-bottom: 4px; ${isCurrentUser ? 'background: #f0f9ff;' : ''}">
+          <input type="checkbox" class="bill-member-checkbox-edit" data-user-id="${member.user_id}" ${isChecked ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
+          <span>${member.username || member.email || member.user_id}${isCurrentUser ? ' (You)' : ''}</span>
+        </label>
+      `;
+    }).join('');
+  } catch (err) {
+    membersList.innerHTML = '<div class="small text-muted">Error loading bill details</div>';
+  }
+}
+
+async function openAddBillModal() {
+  try {
+    setModalField('modal-add-bill', '#add_bill_name', '');
+    setModalField('modal-add-bill', '#add_bill_amount', '');
+    setModalField('modal-add-bill', '#add_bill_due', '');
+    setModalField('modal-add-bill', '#add_bill_category', 'other');
+    setModalField('modal-add-bill', '#add_bill_assigned_to', '');
+    setModalField('modal-add-bill', '#add_bill_recurring', '');
+    setModalField('modal-add-bill', '#add_bill_notification_freq', 'daily');
+    setModalField('modal-add-bill', '#add_bill_visibility', 'only_me');
+    setModalField('modal-add-bill', '#add_bill_notes', '');
+    document.getElementById('add_bill_custom_days').value = '';
+    document.getElementById('add_bill_notification_days').value = '';
+    document.getElementById('custom_recurring_options').style.display = 'none';
+    document.getElementById('custom_notification_options').style.display = 'none';
+    
+    // Populate member dropdowns and load member checkboxes
+    await populateMemberDropdowns();
+    await loadMembersForAdd();
+    updateVisibilityCheckboxes('add');
+    
+    openModal('modal-add-bill');
+  } catch (err) {
+    console.error('Error opening add bill modal:', err);
+    showToast('Error opening bill form. Please try again.', 'error');
+  }
+}
+
+async function submitAddBill() {
+  const name = document.getElementById('add_bill_name').value.trim();
+  const amount = document.getElementById('add_bill_amount').value;
+  const due = document.getElementById('add_bill_due').value;
+  const category = document.getElementById('add_bill_category').value;
+  const assignedTo = document.getElementById('add_bill_assigned_to').value;
+  const recurring = document.getElementById('add_bill_recurring').value;
+  const customDays = document.getElementById('add_bill_custom_days').value;
+  const notificationFreq = document.getElementById('add_bill_notification_freq').value;
+  const notificationDays = document.getElementById('add_bill_notification_days').value;
+  const notes = document.getElementById('add_bill_notes').value.trim();
+  
+  // Get selected members from checkboxes
+  const checkboxes = document.querySelectorAll('#add_bill_members_list .bill-member-checkbox:checked');
+  const visibleTo = Array.from(checkboxes).map(cb => cb.dataset.userId);
+  
+  if (visibleTo.length === 0) {
+    showToast("Please select at least one member who can see this bill", "error");
+    return;
+  }
+  
+  // Determine visibility based on selection
+  const currentUserId = sessionStorage.getItem("user_id");
+  let visibility = 'custom';
+  let finalVisibleTo = visibleTo;
+  
+  if (visibleTo.length === 1 && visibleTo[0] === currentUserId) {
+    visibility = 'only_me';
+  } else {
+    // Check if all members are selected
+    const allMembers = await loadGroupMembers();
+    if (visibleTo.length === allMembers.length) {
+      visibility = 'all';
+      finalVisibleTo = undefined; // undefined means all members
+    }
+  }
+  
+  // Get editable permissions
+  const editableCheckboxes = document.querySelectorAll('#add_bill_editable_list .bill-editable-checkbox:checked');
+  const editableTo = Array.from(editableCheckboxes).map(cb => cb.dataset.userId);
+  let editableVisibility = 'custom';
+  let finalEditableTo = editableTo;
+  
+  if (editableTo.length === 1 && editableTo[0] === currentUserId) {
+    editableVisibility = 'only_me';
+  } else {
+    const allMembers = await loadGroupMembers();
+    if (editableTo.length === allMembers.length) {
+      editableVisibility = 'all';
+      finalEditableTo = undefined;
+    }
+  }
+  
+  // Get deletable permissions
+  const deletableCheckboxes = document.querySelectorAll('#add_bill_deletable_list .bill-deletable-checkbox:checked');
+  const deletableTo = Array.from(deletableCheckboxes).map(cb => cb.dataset.userId);
+  let deletableVisibility = 'custom';
+  let finalDeletableTo = deletableTo;
+  
+  if (deletableTo.length === 1 && deletableTo[0] === currentUserId) {
+    deletableVisibility = 'only_me';
+  } else {
+    const allMembers = await loadGroupMembers();
+    if (deletableTo.length === allMembers.length) {
+      deletableVisibility = 'all';
+      finalDeletableTo = undefined;
+    }
+  }
+  
+  if (!name || !amount || !due) {
+    showToast("Name, amount, and due date are required", "error");
+    return;
+  }
+  
+  if (recurring === 'custom' && !customDays) {
+    showToast("Please enter custom days between bills", "error");
+    return;
+  }
+  
+  if (notificationFreq === 'custom' && !notificationDays) {
+    showToast("Please enter days before due date to notify", "error");
+    return;
+  }
+  
+  const groupName = getGroupName();
+  if (!groupName || groupName === "null" || groupName === "undefined") {
+    showToast("Please select a group first", "error");
+    return;
+  }
+  
+  // Calculate recurring days
+  let recurringDays = null;
+  if (recurring) {
+    const recurringMap = {
+      'daily': 1,
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 30,
+      'yearly': 365,
+      'custom': parseInt(customDays) || null
+    };
+    recurringDays = recurringMap[recurring];
+  }
+  
+  // Calculate notification days
+  let notificationDaysBefore = null;
+  if (notificationFreq === 'custom') {
+    notificationDaysBefore = parseInt(notificationDays) || null;
+  } else {
+    const notificationMap = {
+      'daily': 1,
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 30,
+      'yearly': 365
+    };
+    notificationDaysBefore = notificationMap[notificationFreq] || null;
+  }
+  
+  try {
+    await apiPost(`/groups/${groupName}/bills`, {
+      name,
+      amount: parseFloat(amount),
+      due_date: due,
+      category,
+      assigned_to: assignedTo || null,
+      is_recurring: !!recurring,
+      recurring_frequency: recurring || null,
+      recurring_days: recurringDays,
+      notification_frequency: notificationFreq,
+      notification_days_before: notificationDaysBefore,
+      visibility: visibility,
+      visible_to: finalVisibleTo,  // undefined means all, array means specific members
+      editable_visibility: editableVisibility,
+      editable_by: finalEditableTo,  // undefined means all, array means specific members
+      deletable_visibility: deletableVisibility,
+      deletable_by: finalDeletableTo,  // undefined means all, array means specific members
+      notes
+    });
+    closeModal('modal-add-bill');
+    showToast("Bill added successfully", "success");
+    loadBills();
+  } catch (err) {
+    showToast(err.message || "Failed to add bill", "error");
+  }
+}
+
+async function openEditBillModal(billId) {
+  editingBillId = billId;
+  const groupName = getGroupName();
+  
+  // Fetch bill details
+  try {
+    const bill = await apiGet(`/bills/${billId}`);
+    
+    setModalField('modal-edit-bill', '#edit_bill_name', bill.name);
+    setModalField('modal-edit-bill', '#edit_bill_amount', bill.amount);
+    setModalField('modal-edit-bill', '#edit_bill_due', bill.due_date);
+    setModalField('modal-edit-bill', '#edit_bill_category', bill.category || 'other');
+    
+    // Populate member dropdowns first, then set assigned_to
+    await populateMemberDropdowns();
+    setModalField('modal-edit-bill', '#edit_bill_assigned_to', bill.assigned_to || '');
+    
+    setModalField('modal-edit-bill', '#edit_bill_recurring', bill.recurring_frequency || '');
+    setModalField('modal-edit-bill', '#edit_bill_notification_freq', bill.notification_frequency || 'daily');
+      
+      // Set visibility based on bill data
+      let visibility = bill.visibility || 'all';
+      const visibleTo = bill.visible_to || [];
+      const currentUserId = sessionStorage.getItem("user_id");
+      
+      // Determine visibility: if no visible_to or it's undefined, it's 'all'
+      // If visible_to has only creator, it's 'only_me'
+      // Otherwise it's 'custom'
+      if (!visibleTo || visibleTo.length === 0) {
+        visibility = 'all';
+      } else if (visibleTo.length === 1 && visibleTo[0] === currentUserId) {
+        visibility = 'only_me';
+      } else {
+        visibility = 'custom';
+      }
+      
+      setModalField('modal-edit-bill', '#edit_bill_visibility', visibility);
+      
+      // Set editable permissions
+      let editableVisibility = bill.editable_visibility || 'only_me';
+      const editableTo = bill.editable_by || [];
+      if (!editableTo || editableTo.length === 0) {
+        editableVisibility = 'only_me';
+      } else if (editableTo.length === 1 && editableTo[0] === currentUserId) {
+        editableVisibility = 'only_me';
+      } else {
+        const allMembers = await loadGroupMembers();
+        if (editableTo.length === allMembers.length) {
+          editableVisibility = 'all';
+        } else {
+          editableVisibility = 'custom';
+        }
+      }
+      setModalField('modal-edit-bill', '#edit_bill_editable', editableVisibility);
+      
+      // Set deletable permissions
+      let deletableVisibility = bill.deletable_visibility || 'only_me';
+      const deletableTo = bill.deletable_by || [];
+      if (!deletableTo || deletableTo.length === 0) {
+        deletableVisibility = 'only_me';
+      } else if (deletableTo.length === 1 && deletableTo[0] === currentUserId) {
+        deletableVisibility = 'only_me';
+      } else {
+        const allMembers = await loadGroupMembers();
+        if (deletableTo.length === allMembers.length) {
+          deletableVisibility = 'all';
+        } else {
+          deletableVisibility = 'custom';
+        }
+      }
+      setModalField('modal-edit-bill', '#edit_bill_deletable', deletableVisibility);
+      
+      // Always load members and update checkboxes
+      await loadMembersForEdit();
+      updateVisibilityCheckboxes('edit');
+      updateEditPermissionsCheckboxes('edit');
+      updateDeletePermissionsCheckboxes('edit');
+      
+      // Show/hide delete button based on permissions
+      const canDelete = canDeleteBill(bill, currentUserId);
+      const deleteBtn = document.getElementById('edit_bill_delete_btn');
+      if (deleteBtn) {
+        deleteBtn.style.display = canDelete ? 'inline-block' : 'none';
+      }
+      
+      setModalField('modal-edit-bill', '#edit_bill_notes', bill.notes || '');
+      document.getElementById('edit_bill_paid').checked = bill.paid || false;
+      
+      if (bill.recurring_days && !['daily', 'weekly', 'biweekly', 'monthly', 'yearly'].includes(bill.recurring_frequency)) {
+        document.getElementById('edit_bill_custom_days').value = bill.recurring_days;
+        document.getElementById('edit_custom_recurring_options').style.display = 'block';
+      }
+      
+      if (bill.notification_days_before && !['daily', 'weekly', 'biweekly', 'monthly', 'yearly'].includes(bill.notification_frequency)) {
+        document.getElementById('edit_bill_notification_days').value = bill.notification_days_before;
+        document.getElementById('edit_custom_notification_options').style.display = 'block';
+      }
+      
+      openModal('modal-edit-bill');
+    } catch (err) {
+      showToast(err.message || "Could not load bill", "error");
+    }
+}
+
+async function submitEditBill() {
+  const name = document.getElementById('edit_bill_name').value.trim();
+  const amount = document.getElementById('edit_bill_amount').value;
+  const due = document.getElementById('edit_bill_due').value;
+  const category = document.getElementById('edit_bill_category').value;
+  const assignedTo = document.getElementById('edit_bill_assigned_to').value;
+  const recurring = document.getElementById('edit_bill_recurring').value;
+  const customDays = document.getElementById('edit_bill_custom_days').value;
+  const notificationFreq = document.getElementById('edit_bill_notification_freq').value;
+  const notificationDays = document.getElementById('edit_bill_notification_days').value;
+  const notes = document.getElementById('edit_bill_notes').value.trim();
+  const paid = document.getElementById('edit_bill_paid').checked;
+  
+  // Get selected members from checkboxes
+  const checkboxes = document.querySelectorAll('#edit_bill_members_list .bill-member-checkbox-edit:checked');
+  const visibleTo = Array.from(checkboxes).map(cb => cb.dataset.userId);
+  
+  if (visibleTo.length === 0) {
+    showToast("Please select at least one member who can see this bill", "error");
+    return;
+  }
+  
+  // Determine visibility based on selection
+  const userId = sessionStorage.getItem("user_id");
+  let visibility = 'custom';
+  let finalVisibleTo = visibleTo;
+  
+  if (visibleTo.length === 1 && visibleTo[0] === userId) {
+    visibility = 'only_me';
+  } else {
+    // Check if all members are selected
+    const allMembers = await loadGroupMembers();
+    if (visibleTo.length === allMembers.length) {
+      visibility = 'all';
+      finalVisibleTo = undefined; // undefined means all members
+    }
+  }
+  
+  // Get editable permissions
+  const editableCheckboxes = document.querySelectorAll('#edit_bill_editable_list .bill-editable-checkbox-edit:checked');
+  const editableTo = Array.from(editableCheckboxes).map(cb => cb.dataset.userId);
+  let editableVisibility = 'custom';
+  let finalEditableTo = editableTo;
+  
+  if (editableTo.length === 1 && editableTo[0] === userId) {
+    editableVisibility = 'only_me';
+  } else {
+    const allMembers = await loadGroupMembers();
+    if (editableTo.length === allMembers.length) {
+      editableVisibility = 'all';
+      finalEditableTo = undefined;
+    }
+  }
+  
+  // Get deletable permissions
+  const deletableCheckboxes = document.querySelectorAll('#edit_bill_deletable_list .bill-deletable-checkbox-edit:checked');
+  const deletableTo = Array.from(deletableCheckboxes).map(cb => cb.dataset.userId);
+  let deletableVisibility = 'custom';
+  let finalDeletableTo = deletableTo;
+  
+  if (deletableTo.length === 1 && deletableTo[0] === userId) {
+    deletableVisibility = 'only_me';
+  } else {
+    const allMembers = await loadGroupMembers();
+    if (deletableTo.length === allMembers.length) {
+      deletableVisibility = 'all';
+      finalDeletableTo = undefined;
+    }
+  }
+  
+  if (!name || !amount || !due) {
+    showToast("Name, amount, and due date are required", "error");
+    return;
+  }
+  
+  if (recurring === 'custom' && !customDays) {
+    showToast("Please enter custom days between bills", "error");
+    return;
+  }
+  
+  if (notificationFreq === 'custom' && !notificationDays) {
+    showToast("Please enter days before due date to notify", "error");
+    return;
+  }
+  
+  if (!editingBillId) return;
+  
+  // Calculate recurring days
+  let recurringDays = null;
+  if (recurring) {
+    const recurringMap = {
+      'daily': 1,
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 30,
+      'yearly': 365,
+      'custom': parseInt(customDays) || null
+    };
+    recurringDays = recurringMap[recurring];
+  }
+  
+  // Calculate notification days
+  let notificationDaysBefore = null;
+  if (notificationFreq === 'custom') {
+    notificationDaysBefore = parseInt(notificationDays) || null;
+  } else {
+    const notificationMap = {
+      'daily': 1,
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 30,
+      'yearly': 365
+    };
+    notificationDaysBefore = notificationMap[notificationFreq] || null;
+  }
+  
+  try {
+    const userId = sessionStorage.getItem("user_id");
+    await apiPatch(`/bills/${editingBillId}`, {
+      name,
+      amount: parseFloat(amount),
+      due_date: due,
+      category,
+      assigned_to: assignedTo || null,
+      is_recurring: !!recurring,
+      recurring_frequency: recurring || null,
+      recurring_days: recurringDays,
+      notification_frequency: notificationFreq,
+      notification_days_before: notificationDaysBefore,
+      visibility: visibility,
+      visible_to: finalVisibleTo,  // undefined means all, array means specific members
+      editable_visibility: editableVisibility,
+      editable_by: finalEditableTo,  // undefined means all, array means specific members
+      deletable_visibility: deletableVisibility,
+      deletable_by: finalDeletableTo,  // undefined means all, array means specific members
+      notes,
+      paid,
+      paid_by: paid ? userId : undefined
+    });
+    closeModal('modal-edit-bill');
+    showToast("Bill updated successfully", "success");
+    loadBills();
+  } catch (err) {
+    showToast(err.message || "Failed to update bill", "error");
+  }
+}
+
+async function markBillPaid(billId) {
+  const userId = sessionStorage.getItem("user_id");
+  try {
+    await apiPatch(`/bills/${billId}`, {
+      paid: true,
+      paid_by: userId
+    });
+    showToast("Bill marked as paid", "success");
+    loadBills();
+  } catch (err) {
+    showToast(err.message || "Failed to mark bill as paid", "error");
+  }
+}
+
+async function confirmDeleteBill() {
+  if (!confirm("Are you sure you want to delete this bill?")) return;
+  
+  if (!editingBillId) return;
+  
+  try {
+    await apiDelete(`/bills/${editingBillId}`);
+    closeModal('modal-edit-bill');
+    showToast("Bill deleted successfully", "success");
+    loadBills();
+  } catch (err) {
+    showToast(err.message || "Failed to delete bill", "error");
+  }
+}
+
+// Legacy rent functions (kept for backward compatibility)
+async function loadRent() {
+  loadBills(); // Redirect to new bills system
+}
+
+function openEditRentModal(amount, due) {
+  // Create a rent bill if it doesn't exist, or edit existing one
+  showToast("Please use 'Add New Bill' to add rent", "info");
+}
+
+async function submitEditRent() {
+  showToast("Please use the bills section to manage rent", "info");
+}
+
+loadBills();
 </script>
   </div>
 {% endblock %}
+
