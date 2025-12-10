@@ -5,13 +5,13 @@
   <h2>Chore Board</h2>
 
   <!-- Group Selection Section -->
-  <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+  <div class="card" style="margin-bottom: 16px; background: var(--primary); color: white; border: none;">
     <div class="row" style="align-items: center;">
       <div style="flex: 1;">
         <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 4px;">Current Group</div>
         <div style="font-size: 1.25rem; font-weight: 600;" id="groupNameDisplay">Select a group</div>
       </div>
-      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none;">
+      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: var(--primary); border: none;">
         Change Group
       </button>
     </div>
@@ -20,30 +20,30 @@
   <!-- Add Chore Button -->
   <div class="card" style="margin-bottom: 16px; display: flex; gap: 12px;">
     <button class="btn" onclick="openAddChoreModal()" style="flex: 1;">+ Add New Chore</button>
-    <button class="btn secondary" onclick="showStats()" style="flex: 1;">📊 View Stats</button>
+    <button class="btn secondary" onclick="showStats()" style="flex: 1;">View Stats</button>
   </div>
 
   <!-- Stats Section -->
   <div id="statsSection" class="card" style="margin-bottom: 16px; display: none; border: 1px solid var(--border);">
     
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h3 style="margin:0;">📊 Group Insights</h3>
-        <button class="btn ghost small" onclick="loadLeaderboard()">🔄 Refresh</button>
+        <h3 style="margin:0;">Group Insights</h3>
+        <button class="btn ghost small" onclick="loadStats()">Refresh</button>
     </div>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px;">
-        <div style="background: var(--surface-secondary); padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Total Completed</div>
-            <div id="stat-total-chores" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">0</div>
+        <div class="hover-scale" style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; text-align: center; border: 2px solid var(--border); transition: all 0.3s ease;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Total Completed</div>
+            <div id="stat-total-chores" class="stat-number gradient-text" style="font-size: 2rem; font-weight: 700; line-height: 1.2;">0</div>
         </div>
-        <div style="background: var(--surface-secondary); padding: 12px; border-radius: 8px; text-align: center;">
-            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">Top Performer</div>
-            <div id="stat-top-performer" style="font-size: 1.1rem; font-weight: 600; color: var(--success);">--</div>
+        <div class="hover-scale" style="background: var(--surface-secondary); padding: 16px; border-radius: 8px; text-align: center; border: 2px solid var(--border); transition: all 0.3s ease;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Top Performer</div>
+            <div id="stat-top-performer" class="stat-number" style="font-size: 1.3rem; font-weight: 600; color: var(--success);">--</div>
         </div>
     </div>
 
-    <h4 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">🏆 Leaderboard</h4>
-    <div id="leaderboard-container">
+    <h4 style="margin-bottom: 12px; font-size: 0.9rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Leaderboard</h4>
+    <div id="statsContent">
         <div class="small text-muted text-center">Loading data...</div>
     </div>
 
@@ -66,7 +66,9 @@
       </div>
       <div class="input-field">
         <label>Assigned To</label>
-        <input id="add_assigned" class="input" placeholder="Roommate name">
+        <select id="add_assigned" class="input">
+          <option value="">Select a person...</option>
+        </select>
       </div>
       <div class="input-field">
         <label>Due Date</label>
@@ -86,10 +88,10 @@
         <label>Photo / Video of Chore (optional)</label>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <button type="button" class="btn secondary" onclick="openCameraView()" style="flex: 1; min-width: 120px;">
-            📷 Take Photo/Video
+            Take Photo/Video
           </button>
           <button type="button" class="btn secondary" onclick="document.getElementById('add_media_file').click()" style="flex: 1; min-width: 120px;">
-            📁 Choose File
+            Choose File
           </button>
         </div>
         <input id="add_media_file" type="file" accept="image/*,video/*" style="display: none;" />
@@ -99,12 +101,12 @@
           <video id="camera_preview" autoplay playsinline style="width: 100%; max-height: 300px; border-radius: 4px; background: #000;"></video>
           <canvas id="camera_canvas" style="display: none;"></canvas>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button type="button" class="btn" onclick="capturePhoto()" style="flex: 1;">📸 Take Photo</button>
-            <button type="button" class="btn" id="record_video_btn" onclick="startVideoRecording()" style="flex: 1;">🎥 Record Video</button>
+            <button type="button" class="btn" onclick="capturePhoto()" style="flex: 1;">Take Photo</button>
+            <button type="button" class="btn" id="record_video_btn" onclick="startVideoRecording()" style="flex: 1;">Record Video</button>
             <button type="button" class="btn secondary" onclick="closeCameraView()" style="flex: 1;">Cancel</button>
           </div>
           <div id="video_recording_controls" style="display: none; margin-top: 8px;">
-            <button type="button" class="btn" id="stop_recording_btn" onclick="stopVideoRecording()" style="width: 100%;">⏹ Stop Recording</button>
+            <button type="button" class="btn" id="stop_recording_btn" onclick="stopVideoRecording()" style="width: 100%;">Stop Recording</button>
           </div>
         </div>
         
@@ -134,10 +136,10 @@
         <label>Add Photo/Video (optional)</label>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <button type="button" class="btn secondary" onclick="openCompleteCameraView()" style="flex: 1; min-width: 120px;">
-            📷 Take Photo/Video
+            Take Photo/Video
           </button>
           <button type="button" class="btn secondary" onclick="document.getElementById('complete_media_file').click()" style="flex: 1; min-width: 120px;">
-            📁 Choose File
+            Choose File
           </button>
         </div>
         <input id="complete_media_file" type="file" accept="image/*,video/*" style="display: none;" />
@@ -147,12 +149,12 @@
           <video id="complete_camera_preview" autoplay playsinline style="width: 100%; max-height: 300px; border-radius: 4px; background: #000;"></video>
           <canvas id="complete_camera_canvas" style="display: none;"></canvas>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
-            <button type="button" class="btn" onclick="captureCompletePhoto()" style="flex: 1;">📸 Take Photo</button>
-            <button type="button" class="btn" id="complete_record_video_btn" onclick="startCompleteVideoRecording()" style="flex: 1;">🎥 Record Video</button>
+            <button type="button" class="btn" onclick="captureCompletePhoto()" style="flex: 1;">Take Photo</button>
+            <button type="button" class="btn" id="complete_record_video_btn" onclick="startCompleteVideoRecording()" style="flex: 1;">Record Video</button>
             <button type="button" class="btn secondary" onclick="closeCompleteCameraView()" style="flex: 1;">Cancel</button>
           </div>
           <div id="complete_video_recording_controls" style="display: none; margin-top: 8px;">
-            <button type="button" class="btn" id="complete_stop_recording_btn" onclick="stopCompleteVideoRecording()" style="width: 100%;">⏹ Stop Recording</button>
+            <button type="button" class="btn" id="complete_stop_recording_btn" onclick="stopCompleteVideoRecording()" style="width: 100%;">Stop Recording</button>
           </div>
         </div>
         
@@ -166,7 +168,7 @@
       
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-confirm-complete')">Cancel</button>
-        <button class="btn" id="confirmCompleteBtn">✓ Mark Complete</button>
+        <button class="btn" id="confirmCompleteBtn">Mark Complete</button>
       </div>
     </div>
   </div>
@@ -176,8 +178,8 @@
     <div class="modal">
       <h3>Edit Chore</h3>
       <div class="input-field"><label class="small">Task</label><input id="edit_task" class="input"></div>
-      <div class="input-field"><label class="small">Assigned To</label><input id="edit_assigned" class="input"></div>
-      <div class="input-field"><label class="small">Due</label><input id="edit_due" class="input"></div>
+      <div class="input-field"><label class="small">Assigned To</label><select id="edit_assigned" class="input"></select></div>
+      <div class="input-field"><label class="small">Due</label><input type="date" id="edit_due" class="input"></div>
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-edit-chore')">Cancel</button>
         <button class="btn" onclick="submitEditChore()">Save</button>
@@ -276,7 +278,7 @@ function renderChores() {
           <div class="chore-tab ${selectedChoreId === 'completed' ? 'active' : ''}" 
                onclick="selectChore('completed')" 
                style="padding: 12px 20px; cursor: pointer; border-bottom: 3px solid ${selectedChoreId === 'completed' ? 'var(--success)' : 'transparent'}; white-space: nowrap; background: #f0fdf4;">
-            <span style="font-weight: ${selectedChoreId === 'completed' ? '600' : '400'}; color: var(--success);">✓ Done (${completedChores.length})</span>
+            <span style="font-weight: ${selectedChoreId === 'completed' ? '600' : '400'}; color: var(--success);">Done (${completedChores.length})</span>
           </div>
         ` : ''}
       </div>
@@ -330,7 +332,7 @@ function renderChoreDetails(chore) {
   
   const completedInfo = isCompleted && chore.completed_by_username ? 
     `<div class="card" style="background: #f0fdf4; border-left: 4px solid var(--success); margin-top: 12px;">
-      <div style="color: var(--success); font-weight: 600;">✓ Completed</div>
+      <div style="color: var(--success); font-weight: 600;">Completed</div>
       <div class="small text-muted">Completed by: ${chore.completed_by_username}${chore.completed_at ? ' on ' + new Date(chore.completed_at).toLocaleDateString() : ''}</div>
     </div>` : '';
   
@@ -347,7 +349,7 @@ function renderChoreDetails(chore) {
           <h3 style="margin: 0 0 8px 0;">${chore.task}</h3>
           <div class="small text-muted" style="margin-top: 4px;">Assigned to: <strong>${chore.assigned_to || 'Unassigned'}</strong></div>
           <div class="small text-muted" style="margin-top: 4px;">Due: <strong>${chore.due_date}</strong></div>
-          ${chore.is_recurring ? '<div class="small" style="color: var(--primary); margin-top: 4px;">🔄 Recurring chore</div>' : ''}
+          ${chore.is_recurring ? '<div class="small" style="color: var(--primary); margin-top: 4px;">Recurring chore</div>' : ''}
         </div>
         ${statusBadge}
       </div>
@@ -355,7 +357,7 @@ function renderChoreDetails(chore) {
       ${mediaHtml}
       <div style="margin-top: 16px; display: flex; gap: 8px;">
         ${!isCompleted ? `<button class="btn secondary" onclick="openEditChore('${chore.id}')">Edit</button>` : ''}
-        ${!isCompleted ? `<button class="btn" onclick="confirmComplete('${chore.id}')">✓ Mark Complete</button>` : ''}
+        ${!isCompleted ? `<button class="btn" onclick="confirmComplete('${chore.id}')">Mark Complete</button>` : ''}
       </div>
     </div>
   `;
@@ -386,7 +388,7 @@ function renderCompletedChores(completedChores) {
         return `
           <div class="card" style="background: #f0fdf4; margin-bottom: 12px;">
             <div style="display: flex; align-items: start; gap: 12px;">
-              <div style="font-size: 24px; color: var(--success);">✓</div>
+              <div style="font-size: 1rem; color: var(--success); font-weight: 600;">COMPLETED</div>
               <div style="flex: 1;">
                 <div><strong>${c.task}</strong></div>
                 <div class="small text-muted">Completed by: ${c.completed_by_username || 'Unknown'}${c.completed_at ? ' on ' + new Date(c.completed_at).toLocaleDateString() : ''}</div>
@@ -404,7 +406,7 @@ function toggleChoreComplete(choreId) {
   confirmComplete(choreId);
 }
 
-function openAddChoreModal() {
+async function openAddChoreModal() {
   setModalField('modal-add-chore', '#add_task', '');
   setModalField('modal-add-chore', '#add_assigned', '');
   setModalField('modal-add-chore', '#add_due', '');
@@ -415,6 +417,10 @@ function openAddChoreModal() {
   // Reset button state when opening modal
   const btn = document.getElementById('modal-add-chore-save-btn');
   if (btn) setButtonLoading(btn, false);
+  
+  // Populate member dropdown
+  await populateChoreMemberDropdowns();
+  
   openModal('modal-add-chore');
 }
 
@@ -969,12 +975,65 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+/* Member dropdown helpers */
+async function loadGroupMembers() {
+  const groupName = getGroupName();
+  if (!groupName) return [];
+  
+  try {
+    const data = await apiGet(`/groups/${groupName}/members`);
+    return data.members || [];
+  } catch (err) {
+    console.error("Error loading group members:", err);
+    return [];
+  }
+}
+
+async function populateChoreMemberDropdowns() {
+  const members = await loadGroupMembers();
+  const currentUserId = sessionStorage.getItem("user_id");
+  
+  // Populate add chore dropdown
+  const addDropdown = document.getElementById('add_assigned');
+  if (addDropdown) {
+    addDropdown.innerHTML = '<option value="">Select a person...</option>';
+    members.forEach(member => {
+      const option = document.createElement('option');
+      option.value = member.username || member.email || member.user_id;
+      option.textContent = member.username || member.email || member.user_id;
+      if (member.user_id === currentUserId) {
+        option.textContent += ' (You)';
+      }
+      addDropdown.appendChild(option);
+    });
+  }
+  
+  // Populate edit chore dropdown
+  const editDropdown = document.getElementById('edit_assigned');
+  if (editDropdown) {
+    editDropdown.innerHTML = '<option value="">Select a person...</option>';
+    members.forEach(member => {
+      const option = document.createElement('option');
+      option.value = member.username || member.email || member.user_id;
+      option.textContent = member.username || member.email || member.user_id;
+      if (member.user_id === currentUserId) {
+        option.textContent += ' (You)';
+      }
+      editDropdown.appendChild(option);
+    });
+  }
+}
+
 /* Edit flow */
 let editingId = null;
-function openEditChore(id) {
+async function openEditChore(id) {
   const c = choresCache.find(x => x.id === id);
   if (!c) return;
   editingId = id;
+  
+  // Populate member dropdowns first
+  await populateChoreMemberDropdowns();
+  
   setModalField('modal-edit-chore', '#edit_task', c.task);
   setModalField('modal-edit-chore', '#edit_assigned', c.assigned_to);
   setModalField('modal-edit-chore', '#edit_due', c.due_date);
@@ -1008,6 +1067,23 @@ function hideStats() {
   document.getElementById('statsSection').style.display = 'none';
   document.getElementById('choresTabsContainer').style.display = 'block';
   document.getElementById('choreDetailsContainer').style.display = 'block';
+}
+
+// Animated counter function
+function animateCounter(element, target, duration = 1000) {
+  const start = 0;
+  const increment = target / (duration / 16);
+  let current = start;
+  
+  const timer = setInterval(() => {
+    current += increment;
+    if (current >= target) {
+      element.textContent = target;
+      clearInterval(timer);
+    } else {
+      element.textContent = Math.floor(current);
+    }
+  }, 16);
 }
 
 async function loadStats() {
@@ -1061,6 +1137,20 @@ async function loadStats() {
     
     const statsArray = Object.values(userStats).sort((a, b) => b.totalCompleted - a.totalCompleted);
     
+    // Update top stats with animation
+    const totalCompleted = completedChores.length;
+    const topPerformer = statsArray.length > 0 && statsArray[0].totalCompleted > 0 ? statsArray[0].username : '--';
+    
+    const totalElement = document.getElementById('stat-total-chores');
+    const performerElement = document.getElementById('stat-top-performer');
+    if (totalElement) {
+      totalElement.textContent = '0';
+      setTimeout(() => animateCounter(totalElement, totalCompleted), 100);
+    }
+    if (performerElement) {
+      performerElement.textContent = topPerformer;
+    }
+    
     if (statsArray.length === 0) {
       document.getElementById('statsContent').innerHTML = '<div class="small text-muted">No completed chores yet. Complete some chores to see stats!</div>';
       return;
@@ -1068,8 +1158,8 @@ async function loadStats() {
     
     const statsHtml = `
       <div style="display: grid; gap: 16px;">
-        ${statsArray.map(user => `
-          <div class="card" style="background: ${user.totalCompleted > 0 ? '#f0fdf4' : '#f8fafc'};">
+        ${statsArray.map((user, index) => `
+          <div class="card hover-scale" style="background: ${user.totalCompleted > 0 ? '#f0fdf4' : '#f8fafc'}; animation-delay: ${index * 0.1}s; border-left: 4px solid ${user.totalCompleted > 0 ? 'var(--success)' : 'var(--border)'};">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
               <div>
                 <h4 style="margin: 0 0 4px 0;">${user.username}</h4>
@@ -1078,17 +1168,17 @@ async function loadStats() {
                   ${user.totalAssigned ? ` • ${user.totalAssigned} pending` : ''}
                 </div>
               </div>
-              <div style="font-size: 2rem; color: var(--success);">${user.totalCompleted || 0}</div>
+              <div class="stat-number" style="font-size: 2rem; font-weight: 700; color: var(--success);">${user.totalCompleted || 0}</div>
             </div>
             ${user.chores.length > 0 ? `
               <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
                 <div class="small" style="font-weight: 600; margin-bottom: 8px;">Completed Chores:</div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   ${user.chores.slice(0, 5).map(c => `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                      <span style="color: var(--success);">✓</span>
+                    <div style="display: flex; align-items: center; gap: 8px; transition: transform 0.2s;">
+                      <span style="color: var(--success); font-size: 0.875rem; font-weight: 600;">COMPLETED</span>
                       <span class="small">${c.task}</span>
-                      ${c.hasPhoto ? '<span style="font-size: 0.75rem;">📷</span>' : ''}
+                      ${c.hasPhoto ? '<span class="small text-muted">(with photo)</span>' : ''}
                     </div>
                   `).join('')}
                   ${user.chores.length > 5 ? `<div class="small text-muted">...and ${user.chores.length - 5} more</div>` : ''}

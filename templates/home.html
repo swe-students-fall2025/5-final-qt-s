@@ -14,13 +14,13 @@
   <h2>Dashboard</h2>
 
   <!-- Group Selection Section -->
-  <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+  <div class="card" style="margin-bottom: 16px; background: var(--primary); color: white; border: none;">
     <div class="row" style="align-items: center;">
       <div style="flex: 1;">
         <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 4px;">Current Group</div>
         <div style="font-size: 1.25rem; font-weight: 600;" id="groupNameDisplay">Select a group</div>
       </div>
-      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none;">
+      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: var(--primary); border: none;">
         Change Group
       </button>
     </div>
@@ -94,7 +94,7 @@ if (!groupName) {
         
         let html = '';
         if (totalUnpaid === 0) {
-          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All bills paid ✅</div>`;
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All bills paid</div>`;
         } else {
           const overdueText = overdueCount > 0 ? `${overdueCount} overdue` : '';
           const dueSoonText = dueSoonCount > 0 ? `${dueSoonCount} due soon` : '';
@@ -107,7 +107,7 @@ if (!groupName) {
       // Chore Status - Show overdue count and pending
       const cBox = document.getElementById("choreBox");
       if (!chores || !chores.chores || chores.chores.length === 0) {
-        cBox.innerHTML = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done ✅</div>`;
+        cBox.innerHTML = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done</div>`;
       } else {
         const pendingChores = chores.chores.filter(c => c.status !== 'completed');
         const overdueChores = pendingChores.filter(c => c.status === 'OVERDUE');
@@ -124,7 +124,7 @@ if (!groupName) {
         const count = pendingChores.length;
         let html = '';
         if (count === 0) {
-          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done ✅</div>`;
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All chores done</div>`;
         } else {
           const overdueText = overdueChores.length > 0 ? `${overdueChores.length} overdue` : '';
           const dueSoonText = dueSoonChores.length > 0 ? `${dueSoonChores.length} due this week` : '';
@@ -156,7 +156,7 @@ if (!groupName) {
         
         let html = '';
         if (upcomingEvents.length === 0) {
-          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All tasks done ✅</div>`;
+          html = `<div style="font-size: 1.25rem; font-weight: 600; color: #059669;">All tasks done</div>`;
         } else if (upcomingEvents.length === 1) {
           html = `<div style="font-size: 1.25rem; font-weight: 600; color: #2563eb;">1 event this week</div>`;
         } else {
