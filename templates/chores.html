@@ -4,14 +4,38 @@
   <div class="container">
   <h2>Chore Board</h2>
 
-  <div class="card" style="margin-bottom:12px;">
-    <div class="row">
-      <button class="btn" onclick="openAddChoreModal()">Add chore</button>
-      <div class="right small text-muted">Group: <span id="groupNameDisplay"></span></div>
+  <!-- Group Selection Section -->
+  <div class="card" style="margin-bottom: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+    <div class="row" style="align-items: center;">
+      <div style="flex: 1;">
+        <div style="font-size: 0.875rem; opacity: 0.9; margin-bottom: 4px;">Current Group</div>
+        <div style="font-size: 1.25rem; font-weight: 600;" id="groupNameDisplay">Select a group</div>
+      </div>
+      <button class="btn" onclick="window.location.href='/my_groups'" style="background: white; color: #667eea; border: none;">
+        Change Group
+      </button>
     </div>
   </div>
 
-  <div id="choresList"></div>
+  <!-- Add Chore Button -->
+  <div class="card" style="margin-bottom: 16px;">
+    <button class="btn" onclick="openAddChoreModal()" style="width: 100%;">+ Add New Chore</button>
+  </div>
+
+  <!-- Stats Section -->
+  <div id="statsSection" class="card" style="margin-bottom: 16px; display: none;">
+    <h3 style="margin-bottom: 16px;">📊 Chore Statistics</h3>
+    <div id="statsContent">
+      <div class="small text-muted">Loading stats...</div>
+    </div>
+    <button class="btn secondary" onclick="hideStats()" style="margin-top: 12px;">Back to Chores</button>
+  </div>
+
+  <!-- Chores Tabs Container -->
+  <div id="choresTabsContainer" style="margin-bottom: 16px;"></div>
+  
+  <!-- Chore Details Container -->
+  <div id="choreDetailsContainer"></div>
 
   <!-- Add Chore Modal -->
   <div id="modal-add-chore-backdrop" class="modal-backdrop">
@@ -74,20 +98,56 @@
       </div>
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-add-chore')">Cancel</button>
-        <button class="btn" id="modal-add-chore-save-btn" onclick="submitAddChore()">Save</button>
+        <button class="btn" id="modal-add-chore-save-btn" onclick="submitAddChore()">Save & View Stats</button>
       </div>
 
     </div>
   </div>
 
-  <!-- Confirm Complete Modal -->
+  <!-- Complete Chore Modal with Photo Upload -->
   <div id="modal-confirm-complete-backdrop" class="modal-backdrop">
-    <div class="modal">
-      <h3>Confirm completion</h3>
-      <div id="confirmText" class="small text-muted">Are you sure?</div>
+    <div class="modal" style="max-width: 600px;">
+      <h3>Complete Chore</h3>
+      <div id="confirmText" class="small text-muted">Mark this chore as complete?</div>
+      
+      <!-- Photo Upload Section -->
+      <div class="input-field" style="margin-top: 16px;">
+        <label>Add Photo/Video (optional)</label>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn secondary" onclick="openCompleteCameraView()" style="flex: 1; min-width: 120px;">
+            📷 Take Photo/Video
+          </button>
+          <button type="button" class="btn secondary" onclick="document.getElementById('complete_media_file').click()" style="flex: 1; min-width: 120px;">
+            📁 Choose File
+          </button>
+        </div>
+        <input id="complete_media_file" type="file" accept="image/*,video/*" style="display: none;" />
+        
+        <!-- Live Camera View for Completion -->
+        <div id="complete_camera_view_container" style="display: none; margin-top: 12px;">
+          <video id="complete_camera_preview" autoplay playsinline style="width: 100%; max-height: 300px; border-radius: 4px; background: #000;"></video>
+          <canvas id="complete_camera_canvas" style="display: none;"></canvas>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button type="button" class="btn" onclick="captureCompletePhoto()" style="flex: 1;">📸 Take Photo</button>
+            <button type="button" class="btn" id="complete_record_video_btn" onclick="startCompleteVideoRecording()" style="flex: 1;">🎥 Record Video</button>
+            <button type="button" class="btn secondary" onclick="closeCompleteCameraView()" style="flex: 1;">Cancel</button>
+          </div>
+          <div id="complete_video_recording_controls" style="display: none; margin-top: 8px;">
+            <button type="button" class="btn" id="complete_stop_recording_btn" onclick="stopCompleteVideoRecording()" style="width: 100%;">⏹ Stop Recording</button>
+          </div>
+        </div>
+        
+        <!-- Preview of captured/selected media for completion -->
+        <div id="complete_media_preview" style="margin-top: 8px; display: none;">
+          <img id="complete_media_preview_img" style="max-width: 100%; max-height: 200px; border-radius: 4px;" />
+          <video id="complete_media_preview_video" style="max-width: 100%; max-height: 200px; border-radius: 4px; display: none;" controls></video>
+          <button type="button" class="btn secondary" onclick="clearCompleteMediaPreview()" style="margin-top: 8px; width: 100%;">Remove</button>
+        </div>
+      </div>
+      
       <div class="modal-footer">
         <button class="btn secondary" onclick="closeModal('modal-confirm-complete')">Cancel</button>
-        <button class="btn" id="confirmCompleteBtn">Yes, mark complete</button>
+        <button class="btn" id="confirmCompleteBtn">✓ Mark Complete</button>
       </div>
     </div>
   </div>
@@ -108,66 +168,221 @@
 {% endblock %}
 {% block scripts %}
 <script>
-document.getElementById("groupNameDisplay").innerText = getGroupName() || "(no group)";
+// Ensure group name is set on page load
+const currentGroupName = getGroupName();
+if (!currentGroupName || currentGroupName === "null" || currentGroupName === "undefined") {
+  // Try to redirect to groups page if no group selected
+  if (window.location.pathname === "/chores") {
+    showToast("Please select a group first", "error");
+    setTimeout(() => window.location.href = "/my_groups", 2000);
+  }
+}
+document.getElementById("groupNameDisplay").innerText = currentGroupName || "(no group)";
 
 let choresCache = [];
 async function loadChores() {
   const groupName = getGroupName();
-  const container = document.getElementById("choresList");
-  if (!groupName) { 
-    container.innerHTML = "<div class='card small'>Select a group first (My Groups)</div>"; 
+  const tabsContainer = document.getElementById("choresTabsContainer");
+  const detailsContainer = document.getElementById("choreDetailsContainer");
+  
+  if (!groupName || groupName === "null" || groupName === "undefined") { 
+    tabsContainer.innerHTML = "<div class='card small'>Please select a group first. Go to <a href='/my_groups'>My Groups</a> and click 'Enter' on a group.</div>"; 
+    detailsContainer.innerHTML = "";
+    document.getElementById("groupNameDisplay").innerText = "(no group selected)";
     return; 
   }
   
-  container.innerHTML = `
-    <div class="chore-row">
-      <div class="shimmer shimmer-title" style="width: 200px;"></div>
-      <div class="shimmer shimmer-button"></div>
-    </div>
-    <div class="chore-row">
-      <div class="shimmer shimmer-title" style="width: 200px;"></div>
-      <div class="shimmer shimmer-button"></div>
+  // Update display
+  document.getElementById("groupNameDisplay").innerText = groupName;
+  
+  // Show loading state
+  tabsContainer.innerHTML = `
+    <div class="card" style="padding: 12px;">
+      <div class="shimmer shimmer-title" style="width: 200px; margin-bottom: 8px;"></div>
+      <div class="shimmer shimmer-title" style="width: 150px;"></div>
     </div>
   `;
+  detailsContainer.innerHTML = "";
   
   try {
     const data = await apiGet(`/groups/${groupName}/chores`);
     choresCache = data.chores || [];
     renderChores();
   } catch (err) {
-    container.innerHTML = `<div class='card small'>Error: ${err.message || "Could not load chores"}</div>`;
+    tabsContainer.innerHTML = `<div class='card small'>Error: ${err.message || "Could not load chores"}</div>`;
+    detailsContainer.innerHTML = "";
     showToast(err.message || "Could not load chores", "error");
   }
 }
 
+let selectedChoreId = null;
+
 function renderChores() {
-  const container = document.getElementById("choresList");
+  const tabsContainer = document.getElementById("choresTabsContainer");
+  const detailsContainer = document.getElementById("choreDetailsContainer");
+  
   if (!choresCache.length) {
-    container.innerHTML = "<div class='card small text-muted'>No chores</div>";
+    tabsContainer.innerHTML = "<div class='card small text-muted'>No chores. Click 'Add New Chore' to get started!</div>";
+    detailsContainer.innerHTML = "";
     return;
   }
-  container.innerHTML = choresCache.map(c => {
-    const isCompleted = c.status === 'completed';
-    const mediaHtml = c.media_url ? 
-      (c.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? 
-        `<img src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; display: block;" alt="Chore media" />` :
-        `<video src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; display: block;" controls></video>`
-      ) : '';
-    return `
-    <div class="chore-row">
-      <div>
-        <div><b>${c.task}</b></div>
-        <div class="small text-muted">Assigned: ${c.assigned_to} • Due: ${c.due_date}</div>
-        ${mediaHtml}
-      </div>
-      <div class="row">
-        <span class="${c.status === 'OVERDUE' ? 'overdue' : c.status === 'completed' ? 'ok' : 'warn'}">${c.status}</span>
-        ${!isCompleted ? `<button class="btn secondary" style="margin-left:8px;" onclick="openEditChore('${c.id}')">Edit</button>` : ''}
-        ${!isCompleted ? `<button class="btn" style="margin-left:8px;" onclick="confirmComplete('${c.id}')">Complete</button>` : ''}
+  
+  // Separate pending and completed chores
+  const pendingChores = choresCache.filter(c => c.status !== 'completed');
+  const completedChores = choresCache.filter(c => c.status === 'completed');
+  
+  // Render tabs - show all pending chores as tabs
+  tabsContainer.innerHTML = `
+    <div class="card" style="padding: 0;">
+      <div style="display: flex; border-bottom: 2px solid var(--border); overflow-x: auto;">
+        ${pendingChores.map((c, idx) => {
+          const isOverdue = c.status === 'OVERDUE';
+          const isPending = c.status === 'pending';
+          return `
+          <div class="chore-tab ${selectedChoreId === c.id ? 'active' : ''}" 
+               onclick="selectChore('${c.id}')" 
+               style="padding: 12px 16px; cursor: pointer; border-bottom: 3px solid ${selectedChoreId === c.id ? 'var(--primary)' : 'transparent'}; white-space: nowrap; min-width: 140px; ${isOverdue ? 'background: #fef2f2;' : ''}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" onclick="event.stopPropagation(); toggleChoreComplete('${c.id}')" style="width: 18px; height: 18px; cursor: pointer;" ${c.status === 'completed' ? 'checked' : ''}>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: ${selectedChoreId === c.id ? '600' : '400'}; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis;">${c.task.length > 12 ? c.task.substring(0, 12) + '...' : c.task}</div>
+                <div style="font-size: 0.75rem; color: var(--secondary); margin-top: 2px;">${c.assigned_to || 'Unassigned'}</div>
+              </div>
+              ${isOverdue ? '<span class="overdue" style="font-size: 0.75rem; font-weight: bold;">!</span>' : ''}
+            </div>
+          </div>
+        `;
+        }).join("")}
+        ${completedChores.length > 0 ? `
+          <div class="chore-tab ${selectedChoreId === 'completed' ? 'active' : ''}" 
+               onclick="selectChore('completed')" 
+               style="padding: 12px 20px; cursor: pointer; border-bottom: 3px solid ${selectedChoreId === 'completed' ? 'var(--success)' : 'transparent'}; white-space: nowrap; background: #f0fdf4;">
+            <span style="font-weight: ${selectedChoreId === 'completed' ? '600' : '400'}; color: var(--success);">✓ Done (${completedChores.length})</span>
+          </div>
+        ` : ''}
       </div>
     </div>
-    `;
-  }).join("");
+  `;
+  
+  // Render selected chore details
+  if (selectedChoreId && selectedChoreId !== 'completed') {
+    const chore = choresCache.find(c => c.id === selectedChoreId);
+    if (chore) {
+      renderChoreDetails(chore);
+    }
+  } else if (selectedChoreId === 'completed') {
+    renderCompletedChores(completedChores);
+  } else if (pendingChores.length > 0) {
+    // Auto-select first pending chore
+    selectChore(pendingChores[0].id);
+  }
+}
+
+function selectChore(choreId) {
+  selectedChoreId = choreId;
+  renderChores();
+}
+
+function renderChoreDetails(chore) {
+  const container = document.getElementById("choreDetailsContainer");
+  const isCompleted = chore.status === 'completed';
+  const isOverdue = chore.status === 'OVERDUE';
+  
+  // Show completion photos if available
+  let mediaHtml = '';
+  if (chore.completion_media && chore.completion_media.length > 0) {
+    mediaHtml = '<div style="margin-top: 16px;"><strong style="font-size: 0.9rem;">Completion Photos:</strong></div>';
+    mediaHtml += '<div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">';
+    mediaHtml += chore.completion_media.map(cm => {
+      const isImage = cm.media_url && cm.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+      return isImage ? 
+        `<img src="${cm.media_url}" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: var(--shadow-md);" alt="Completion photo" />` :
+        `<video src="${cm.media_url}" style="max-width: 200px; max-height: 200px; border-radius: 8px; box-shadow: var(--shadow-md);" controls></video>`;
+    }).join('');
+    mediaHtml += '</div>';
+  } else if (chore.media_url) {
+    const isImage = chore.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i) || chore.media_url.startsWith('blob:');
+    mediaHtml = isImage ? 
+      `<div style="margin-top: 16px;"><strong style="font-size: 0.9rem;">Initial Photo:</strong></div>
+       <img src="${chore.media_url}" style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-top: 8px; display: block; box-shadow: var(--shadow-md);" alt="Chore media" />` :
+      `<div style="margin-top: 16px;"><strong style="font-size: 0.9rem;">Initial Video:</strong></div>
+       <video src="${chore.media_url}" style="max-width: 100%; max-height: 400px; border-radius: 8px; margin-top: 8px; display: block; box-shadow: var(--shadow-md);" controls></video>`;
+  }
+  
+  const completedInfo = isCompleted && chore.completed_by_username ? 
+    `<div class="card" style="background: #f0fdf4; border-left: 4px solid var(--success); margin-top: 12px;">
+      <div style="color: var(--success); font-weight: 600;">✓ Completed</div>
+      <div class="small text-muted">Completed by: ${chore.completed_by_username}${chore.completed_at ? ' on ' + new Date(chore.completed_at).toLocaleDateString() : ''}</div>
+    </div>` : '';
+  
+  const statusBadge = isOverdue ? 
+    '<span class="overdue" style="padding: 6px 12px; border-radius: 4px; font-weight: 600; background: var(--error); color: white;">OVERDUE</span>' :
+    isCompleted ?
+    '<span class="ok" style="padding: 6px 12px; border-radius: 4px; font-weight: 600;">COMPLETED</span>' :
+    '<span class="warn" style="padding: 6px 12px; border-radius: 4px; font-weight: 600;">PENDING</span>';
+  
+  container.innerHTML = `
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;">
+        <div style="flex: 1;">
+          <h3 style="margin: 0 0 8px 0;">${chore.task}</h3>
+          <div class="small text-muted" style="margin-top: 4px;">Assigned to: <strong>${chore.assigned_to || 'Unassigned'}</strong></div>
+          <div class="small text-muted" style="margin-top: 4px;">Due: <strong>${chore.due_date}</strong></div>
+          ${chore.is_recurring ? '<div class="small" style="color: var(--primary); margin-top: 4px;">🔄 Recurring chore</div>' : ''}
+        </div>
+        ${statusBadge}
+      </div>
+      ${completedInfo}
+      ${mediaHtml}
+      <div style="margin-top: 16px; display: flex; gap: 8px;">
+        ${!isCompleted ? `<button class="btn secondary" onclick="openEditChore('${chore.id}')">Edit</button>` : ''}
+        ${!isCompleted ? `<button class="btn" onclick="confirmComplete('${chore.id}')">✓ Mark Complete</button>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderCompletedChores(completedChores) {
+  const container = document.getElementById("choreDetailsContainer");
+  container.innerHTML = `
+    <div class="card">
+      <h3 style="margin-bottom: 16px;">Completed Chores</h3>
+      ${completedChores.map(c => {
+        // Show all completion photos if available
+        let mediaHtml = '';
+        if (c.completion_media && c.completion_media.length > 0) {
+          mediaHtml = c.completion_media.map(cm => {
+            const isImage = cm.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+            return isImage ? 
+              `<img src="${cm.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; margin-right: 8px; display: inline-block;" alt="Completion photo" />` :
+              `<video src="${cm.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px; margin-right: 8px; display: inline-block;" controls></video>`;
+          }).join('');
+        } else if (c.media_url) {
+          const isImage = c.media_url.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+          mediaHtml = isImage ? 
+            `<img src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px;" alt="Chore media" />` :
+            `<video src="${c.media_url}" style="max-width: 200px; max-height: 150px; border-radius: 4px; margin-top: 8px;" controls></video>`;
+        }
+        
+        return `
+          <div class="card" style="background: #f0fdf4; margin-bottom: 12px;">
+            <div style="display: flex; align-items: start; gap: 12px;">
+              <div style="font-size: 24px; color: var(--success);">✓</div>
+              <div style="flex: 1;">
+                <div><strong>${c.task}</strong></div>
+                <div class="small text-muted">Completed by: ${c.completed_by_username || 'Unknown'}${c.completed_at ? ' on ' + new Date(c.completed_at).toLocaleDateString() : ''}</div>
+                ${mediaHtml ? `<div style="margin-top: 8px;">${mediaHtml}</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+function toggleChoreComplete(choreId) {
+  confirmComplete(choreId);
 }
 
 function openAddChoreModal() {
@@ -384,6 +599,11 @@ async function submitAddChore() {
   if (!task || !due) return showToast("Task and due date required", "error");
   
   const groupName = getGroupName();
+  if (!groupName || groupName === "null" || groupName === "undefined") {
+    showToast("Please select a group first", "error");
+    return;
+  }
+  
   const btn = document.getElementById('modal-add-chore-save-btn');
   if (!btn) return;
 
@@ -399,56 +619,336 @@ async function submitAddChore() {
   const is_recurring = recurring !== "";
   const frequency_days = frequencyMap[recurring] || 0;
   
+  // Create temporary chore for optimistic update
+  const tempId = 'temp_' + Date.now();
+  const tempChore = {
+    id: tempId,
+    task: task,
+    assigned_to: assigned || 'Unassigned',
+    due_date: due,
+    status: new Date(due) < new Date() ? 'OVERDUE' : 'pending',
+    is_recurring: is_recurring,
+    media_url: mediaFile ? URL.createObjectURL(mediaFile) : null
+  };
+  
+  // Optimistically add to cache and render immediately
+  choresCache.push(tempChore);
+  renderChores();
+  selectChore(tempId);
+  
+  // Close modal immediately for better UX
+  closeModal('modal-add-chore');
+  showToast("Adding chore...", "info");
+  
   setButtonLoading(btn, true);
   try {
+    let result;
     // Use FormData if there's a media file, otherwise use JSON
     if (mediaFile) {
       const formData = new FormData();
       formData.append('task', task);
       formData.append('assigned_to', assigned);
       formData.append('due_date', due);
-      formData.append('is_recurring', is_recurring);
-      formData.append('frequency_days', frequency_days);
+      formData.append('is_recurring', String(is_recurring));
+      formData.append('frequency_days', String(frequency_days));
       formData.append('media', mediaFile);
       
-      await apiPostFormData(`/groups/${groupName}/chores`, formData);
+      result = await apiPostFormData(`/groups/${groupName}/chores`, formData);
     } else {
-      await apiPost(`/groups/${groupName}/chores`, { 
+      const payload = { 
         task, 
         assigned_to: assigned, 
         due_date: due, 
         is_recurring,
         frequency_days
-      });
+      };
+      result = await apiPost(`/groups/${groupName}/chores`, payload);
     }
-    setButtonLoading(btn, false); // Reset button state BEFORE closing modal
-    closeModal('modal-add-chore');
-    showToast("Chore added", "success");
-    loadChores();
+    
+    // Replace temp chore with real one from server
+    const realChore = result.chore || result;
+    const tempIndex = choresCache.findIndex(c => c.id === tempId);
+    if (tempIndex !== -1) {
+      const choreId = realChore.id || realChore._id || String(realChore._id);
+      choresCache[tempIndex] = {
+        id: choreId,
+        task: realChore.task,
+        assigned_to: realChore.assigned_to,
+        due_date: realChore.due_date,
+        status: realChore.status || 'pending',
+        is_recurring: realChore.is_recurring || false,
+        media_url: realChore.media_url
+      };
+      selectedChoreId = choreId;
+    }
+    
+    renderChores();
+    setButtonLoading(btn, false);
+    showToast("Chore added successfully", "success");
+    
+    // Navigate to stats section after successful submission
+    showStats();
   } catch (err) {
-    showToast(err.message || "Add failed", "error");
+    // Remove temp chore on error
+    choresCache = choresCache.filter(c => c.id !== tempId);
+    renderChores();
+    console.error("Error adding chore:", err);
+    showToast(err.message || "Failed to add chore", "error");
     setButtonLoading(btn, false);
   }
 }
 
-/* Confirm flow */
+/* Complete Chore Flow with Photo Upload */
 let pendingCompleteId = null;
+let completeMediaFile = null;
+let completeCameraStream = null;
+let completeMediaRecorder = null;
+let completeRecordedChunks = [];
+
 function confirmComplete(id) {
+  const groupName = getGroupName();
+  if (!groupName || groupName === "null" || groupName === "undefined") {
+    showToast("Please select a group first", "error");
+    return;
+  }
+  
   pendingCompleteId = id;
-  document.getElementById("confirmText").innerText = "Mark this chore as complete?";
+  const chore = choresCache.find(c => c.id === id);
+  document.getElementById("confirmText").innerText = `Mark "${chore?.task || 'this chore'}" as complete?`;
+  
+  // Reset media preview
+  clearCompleteMediaPreview();
+  closeCompleteCameraView();
+  
   const btn = document.getElementById("confirmCompleteBtn");
   btn.onclick = async () => {
     try {
-      const res = await apiPost(`/chores/${pendingCompleteId}/complete`, {});
-      closeModal('modal-confirm-complete');
-      showToast(res.message || "Completed", "success");
-      loadChores();
+      const userId = sessionStorage.getItem("user_id");
+      const fileFile = document.getElementById('complete_media_file').files[0];
+      const mediaFile = completeMediaFile || fileFile;
+      
+      if (mediaFile) {
+        // Upload with photo
+        const formData = new FormData();
+        formData.append('completed_by', userId);
+        formData.append('media', mediaFile);
+        
+        const res = await apiPostFormData(`/chores/${pendingCompleteId}/complete`, formData);
+        closeModal('modal-confirm-complete');
+        showToast(res.message || "Completed with photo!", "success");
+      } else {
+        // Complete without photo
+        const res = await apiPost(`/chores/${pendingCompleteId}/complete`, { completed_by: userId });
+        closeModal('modal-confirm-complete');
+        showToast(res.message || "Completed", "success");
+      }
+      
+      clearCompleteMediaPreview();
+      
+      // Optimistically update the chore status
+      const choreIndex = choresCache.findIndex(c => c.id === pendingCompleteId);
+      if (choreIndex !== -1) {
+        choresCache[choreIndex].status = 'completed';
+        if (res.completed_by_username) {
+          choresCache[choreIndex].completed_by_username = res.completed_by_username;
+        }
+        if (res.completion_media_url) {
+          if (!choresCache[choreIndex].completion_media) {
+            choresCache[choreIndex].completion_media = [];
+          }
+          choresCache[choreIndex].completion_media.push({
+            media_url: res.completion_media_url,
+            completed_at: new Date().toISOString()
+          });
+        }
+        renderChores();
+        // Select completed tab if no pending chores
+        const pendingChores = choresCache.filter(c => c.status !== 'completed');
+        if (pendingChores.length === 0) {
+          selectChore('completed');
+        } else {
+          selectChore(pendingChores[0].id);
+        }
+      } else {
+        // Fallback to full reload if chore not found in cache
+        loadChores();
+      }
     } catch (err) {
       showToast(err.message || "Complete failed", "error");
+      // Reload to sync with server
+      loadChores();
     }
   };
   openModal('modal-confirm-complete');
 }
+
+// Camera functions for completion modal
+function openCompleteCameraView() {
+  const container = document.getElementById('complete_camera_view_container');
+  const preview = document.getElementById('complete_camera_preview');
+  
+  container.style.display = 'block';
+  document.getElementById('complete_media_preview').style.display = 'none';
+  
+  navigator.mediaDevices.getUserMedia({ 
+    video: { facingMode: 'environment' }, 
+    audio: true 
+  })
+  .then(stream => {
+    completeCameraStream = stream;
+    preview.srcObject = stream;
+  })
+  .catch(err => {
+    showToast("Could not access camera: " + err.message, "error");
+    closeCompleteCameraView();
+  });
+}
+
+function closeCompleteCameraView() {
+  const container = document.getElementById('complete_camera_view_container');
+  const preview = document.getElementById('complete_camera_preview');
+  const recordingControls = document.getElementById('complete_video_recording_controls');
+  
+  // Stop camera stream
+  if (completeCameraStream) {
+    completeCameraStream.getTracks().forEach(track => track.stop());
+    completeCameraStream = null;
+  }
+  
+  // Stop recording if active
+  if (completeMediaRecorder && completeMediaRecorder.state !== 'inactive') {
+    completeMediaRecorder.stop();
+  }
+  
+  preview.srcObject = null;
+  container.style.display = 'none';
+  recordingControls.style.display = 'none';
+  document.getElementById('complete_record_video_btn').style.display = 'block';
+}
+
+function startCompleteVideoRecording() {
+  const preview = document.getElementById('complete_camera_preview');
+  const recordingControls = document.getElementById('complete_video_recording_controls');
+  
+  completeRecordedChunks = [];
+  
+  try {
+    completeMediaRecorder = new MediaRecorder(completeCameraStream, {
+      mimeType: 'video/webm;codecs=vp8,opus'
+    });
+    
+    completeMediaRecorder.ondataavailable = function(event) {
+      if (event.data.size > 0) {
+        completeRecordedChunks.push(event.data);
+      }
+    };
+    
+    completeMediaRecorder.onstop = function() {
+      const blob = new Blob(completeRecordedChunks, { type: 'video/webm' });
+      completeMediaFile = new File([blob], 'complete_video_' + Date.now() + '.webm', { type: 'video/webm' });
+      
+      // Show preview
+      const previewVideo = document.getElementById('complete_media_preview_video');
+      const previewImg = document.getElementById('complete_media_preview_img');
+      const previewDiv = document.getElementById('complete_media_preview');
+      
+      previewVideo.src = URL.createObjectURL(blob);
+      previewImg.style.display = 'none';
+      previewVideo.style.display = 'block';
+      previewDiv.style.display = 'block';
+      
+      closeCompleteCameraView();
+      showToast("Video recorded!", "success");
+    };
+    
+    completeMediaRecorder.start();
+    document.getElementById('complete_record_video_btn').style.display = 'none';
+    recordingControls.style.display = 'block';
+  } catch (err) {
+    showToast("Could not start recording: " + err.message, "error");
+  }
+}
+
+function stopCompleteVideoRecording() {
+  if (completeMediaRecorder && completeMediaRecorder.state !== 'inactive') {
+    completeMediaRecorder.stop();
+  }
+}
+
+function captureCompletePhoto() {
+  const preview = document.getElementById('complete_camera_preview');
+  const canvas = document.getElementById('complete_camera_canvas');
+  const previewImg = document.getElementById('complete_media_preview_img');
+  const previewDiv = document.getElementById('complete_media_preview');
+  
+  canvas.width = preview.videoWidth;
+  canvas.height = preview.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(preview, 0, 0);
+  
+  canvas.toBlob(function(blob) {
+    completeMediaFile = new File([blob], 'complete_photo_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      previewImg.src = e.target.result;
+      document.getElementById('complete_media_preview_video').style.display = 'none';
+      previewImg.style.display = 'block';
+      previewDiv.style.display = 'block';
+    };
+    reader.readAsDataURL(blob);
+    
+    closeCompleteCameraView();
+    showToast("Photo captured!", "success");
+  }, 'image/jpeg', 0.9);
+}
+
+function clearCompleteMediaPreview() {
+  document.getElementById('complete_media_file').value = '';
+  document.getElementById('complete_media_preview').style.display = 'none';
+  document.getElementById('complete_media_preview_img').src = '';
+  const videoEl = document.getElementById('complete_media_preview_video');
+  if (videoEl.src) {
+    URL.revokeObjectURL(videoEl.src);
+    videoEl.src = '';
+  }
+  completeMediaFile = null;
+}
+
+// Handle file selection for completion
+document.addEventListener('DOMContentLoaded', function() {
+  const completeFileInput = document.getElementById('complete_media_file');
+  if (completeFileInput) {
+    completeFileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        completeMediaFile = null;
+        const preview = document.getElementById('complete_media_preview');
+        const previewImg = document.getElementById('complete_media_preview_img');
+        const previewVideo = document.getElementById('complete_media_preview_video');
+        
+        preview.style.display = 'block';
+        
+        if (file.type.startsWith('image/')) {
+          previewImg.style.display = 'block';
+          previewVideo.style.display = 'none';
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            previewImg.src = e.target.result;
+          };
+          reader.readAsDataURL(file);
+        } else if (file.type.startsWith('video/')) {
+          previewImg.style.display = 'none';
+          previewVideo.style.display = 'block';
+          if (previewVideo.src) {
+            URL.revokeObjectURL(previewVideo.src);
+          }
+          previewVideo.src = URL.createObjectURL(file);
+        }
+      }
+    });
+  }
+});
 
 /* Edit flow */
 let editingId = null;
@@ -474,6 +974,117 @@ async function submitEditChore() {
     loadChores();
   } catch (err) {
     showToast(err.message || "Update failed", "error");
+  }
+}
+
+// Stats Section Functions
+function showStats() {
+  document.getElementById('statsSection').style.display = 'block';
+  document.getElementById('choresTabsContainer').style.display = 'none';
+  document.getElementById('choreDetailsContainer').style.display = 'none';
+  loadStats();
+}
+
+function hideStats() {
+  document.getElementById('statsSection').style.display = 'none';
+  document.getElementById('choresTabsContainer').style.display = 'block';
+  document.getElementById('choreDetailsContainer').style.display = 'block';
+}
+
+async function loadStats() {
+  const groupName = getGroupName();
+  if (!groupName || groupName === "null" || groupName === "undefined") {
+    document.getElementById('statsContent').innerHTML = '<div class="small text-muted">Please select a group first.</div>';
+    return;
+  }
+  
+  try {
+    const data = await apiGet(`/groups/${groupName}/chores`);
+    const allChores = data.chores || [];
+    const completedChores = allChores.filter(c => c.status === 'completed');
+    
+    // Calculate stats by user
+    const userStats = {};
+    
+    completedChores.forEach(chore => {
+      const username = chore.completed_by_username || chore.assigned_to || 'Unknown';
+      if (!userStats[username]) {
+        userStats[username] = {
+          username: username,
+          totalCompleted: 0,
+          totalAssigned: 0,
+          chores: []
+        };
+      }
+      userStats[username].totalCompleted++;
+      userStats[username].chores.push({
+        task: chore.task,
+        completedAt: chore.completed_at,
+        hasPhoto: !!(chore.completion_media && chore.completion_media.length > 0)
+      });
+    });
+    
+    // Also count assigned chores (even if not completed)
+    allChores.forEach(chore => {
+      const username = chore.assigned_to || 'Unassigned';
+      if (!userStats[username]) {
+        userStats[username] = {
+          username: username,
+          totalCompleted: 0,
+          totalAssigned: 0,
+          chores: []
+        };
+      }
+      if (chore.status !== 'completed') {
+        userStats[username].totalAssigned = (userStats[username].totalAssigned || 0) + 1;
+      }
+    });
+    
+    const statsArray = Object.values(userStats).sort((a, b) => b.totalCompleted - a.totalCompleted);
+    
+    if (statsArray.length === 0) {
+      document.getElementById('statsContent').innerHTML = '<div class="small text-muted">No completed chores yet. Complete some chores to see stats!</div>';
+      return;
+    }
+    
+    const statsHtml = `
+      <div style="display: grid; gap: 16px;">
+        ${statsArray.map(user => `
+          <div class="card" style="background: ${user.totalCompleted > 0 ? '#f0fdf4' : '#f8fafc'};">
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+              <div>
+                <h4 style="margin: 0 0 4px 0;">${user.username}</h4>
+                <div class="small text-muted">
+                  ${user.totalCompleted || 0} completed
+                  ${user.totalAssigned ? ` • ${user.totalAssigned} pending` : ''}
+                </div>
+              </div>
+              <div style="font-size: 2rem; color: var(--success);">${user.totalCompleted || 0}</div>
+            </div>
+            ${user.chores.length > 0 ? `
+              <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                <div class="small" style="font-weight: 600; margin-bottom: 8px;">Completed Chores:</div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  ${user.chores.slice(0, 5).map(c => `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span style="color: var(--success);">✓</span>
+                      <span class="small">${c.task}</span>
+                      ${c.hasPhoto ? '<span style="font-size: 0.75rem;">📷</span>' : ''}
+                    </div>
+                  `).join('')}
+                  ${user.chores.length > 5 ? `<div class="small text-muted">...and ${user.chores.length - 5} more</div>` : ''}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+        `).join('')}
+      </div>
+    `;
+    
+    document.getElementById('statsContent').innerHTML = statsHtml;
+  } catch (err) {
+    document.getElementById('statsContent').innerHTML = `<div class="small text-muted">Error loading stats: ${err.message}</div>`;
+    showToast(err.message || "Could not load stats", "error");
   }
 }
 
