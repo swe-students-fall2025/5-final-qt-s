@@ -7,6 +7,9 @@
   <div class="card">
     <div id="groupsList" class="grid"></div>
     <div class="space"></div>
+    <h4>Pending Invitations</h4>
+    <div id="invitationsList"></div>
+    <div class="space"></div>
     <h4>Create a new group</h4>
     <div class="input-field"><input id="newGroupName" class="input" placeholder="Group name"></div>
     <button class="btn" id="createGroupBtn">Create group</button>
@@ -36,17 +39,25 @@ async function loadGroups() {
       container.innerHTML = "<div class='small text-muted'>No groups found. Create one below.</div>";
       return;
     }
-    container.innerHTML = groups.map(g => `
+    const currentUserId = sessionStorage.getItem("user_id");
+    container.innerHTML = groups.map(g => {
+      const isCreator = g.created_by === currentUserId;
+      const roommatesList = g.roommates_info ? g.roommates_info.map(r => r.username).join(", ") : "None";
+      return `
       <div class="card">
         <h4>${g.name}</h4>
         <div class="small text-muted">Created by: ${g.created_by_username || g.created_by || "—"}</div>
+        <div class="small text-muted"><strong>Members:</strong> ${roommatesList || "None"}</div>
+        <div class="small text-muted">Total: ${g.roommates ? g.roommates.length : 0} member(s)</div>
         <div class="space"></div>
         <div class="row">
           <button class="btn" onclick="enterGroup('${g.name}')">Enter</button>
-          <button class="btn secondary" onclick="openAddRoommateModal('${g._id}', '${g.name}')">Add roommate</button>
+          <button class="btn secondary" onclick="openAddRoommateModal('${g._id}', '${g.name}')">Invite roommate</button>
+          ${isCreator ? `<button class="btn secondary" onclick="deleteGroup('${g._id}', '${g.name}')" style="margin-left: 8px;">Delete</button>` : ''}
         </div>
       </div>
-    `).join("");
+    `;
+    }).join("");
   } catch (err) {
     container.innerHTML = `<div class='card'><div class='small text-muted'>Error: ${err.message || "Could not load groups"}</div></div>`;
     showToast(err.message || "Could not load groups", "error");
@@ -77,17 +88,93 @@ document.getElementById("createGroupBtn").addEventListener("click", async () => 
   }
 });
 async function openAddRoommateModal(groupId, groupName) {
-  const userId = await showPrompt("Add Roommate", `Add a roommate to "${groupName}"`, "User ID or Email");
-  if (!userId) return;
+  const userInput = await showPrompt("Invite Roommate", `Send an invitation to join "${groupName}"`, "Enter User ID, Email, or Username");
+  if (!userInput) return;
   try {
-    await apiPost(`/groups/${groupId}/roommates`, { user_id: userId });
-    showToast("Roommate added successfully", "success");
+    const userId = sessionStorage.getItem("user_id");
+    await apiPost(`/groups/${groupId}/roommates`, { user_id: userInput.trim(), inviter_id: userId });
+    showToast("Invitation sent successfully", "success");
     loadGroups();
   } catch (err) {
-    showToast(err.message || "Failed to add roommate", "error");
+    showToast(err.message || "Failed to send invitation", "error");
   }
 }
+
+async function deleteGroup(groupId, groupName) {
+  const confirmed = confirm(`Are you sure you want to delete "${groupName}"? This action cannot be undone.`);
+  if (!confirmed) return;
+  
+  const userId = sessionStorage.getItem("user_id");
+  if (!userId) {
+    showToast("Please login to delete groups", "error");
+    return;
+  }
+  
+  try {
+    // Use apiFetch to send DELETE with body
+    await apiFetch(`/groups/${groupId}`, {
+      method: "DELETE",
+      body: JSON.stringify({ creator_id: userId })
+    });
+    showToast("Group deleted successfully", "success");
+    loadGroups();
+  } catch (err) {
+    showToast(err.message || "Failed to delete group", "error");
+  }
+}
+
+async function loadInvitations() {
+  const userId = sessionStorage.getItem("user_id");
+  if (!userId) return;
+  
+  const container = document.getElementById("invitationsList");
+  try {
+    const invitations = await apiGet(`/invitations?user_id=${userId}`);
+    if (!invitations || !invitations.length) {
+      container.innerHTML = "<div class='small text-muted'>No pending invitations</div>";
+      return;
+    }
+    
+    container.innerHTML = invitations.map(inv => `
+      <div class="card" style="margin-bottom: 8px;">
+        <div><strong>${inv.group?.name || inv.group_name || "Group"}</strong></div>
+        <div class="small text-muted">
+          ${inv.inviter_username ? `Invited by: ${inv.inviter_username}` : 'You have been invited'}
+        </div>
+        <div class="row" style="margin-top: 8px;">
+          <button class="btn" onclick="acceptInvitation('${inv.group_id}', '${inv.invited_user_id}')">Accept</button>
+          <button class="btn secondary" onclick="declineInvitation('${inv.group_id}', '${inv.invited_user_id}')" style="margin-left: 8px;">Decline</button>
+        </div>
+      </div>
+    `).join("");
+  } catch (err) {
+    container.innerHTML = `<div class='small text-muted'>Error loading invitations: ${err.message}</div>`;
+  }
+}
+
+async function acceptInvitation(groupId, userId) {
+  try {
+    await apiPost(`/groups/${groupId}/roommates/${userId}/accept`, {});
+    showToast("Invitation accepted! You've been added to the group.", "success");
+    loadGroups();
+    loadInvitations();
+  } catch (err) {
+    showToast(err.message || "Failed to accept invitation", "error");
+  }
+}
+
+async function declineInvitation(groupId, userId) {
+  try {
+    await apiPost(`/groups/${groupId}/roommates/${userId}/decline`, {});
+    showToast("Invitation declined", "success");
+    loadInvitations();
+  } catch (err) {
+    showToast(err.message || "Failed to decline invitation", "error");
+  }
+}
+
 loadGroups();
+loadInvitations();
 </script>
   </div>
 {% endblock %}
