@@ -105,7 +105,8 @@ def analyze_chores(db, group_name):
             "assigned_to": c["assigned_to"],
             "due_date": c["due_date"],
             "status": "OVERDUE" if is_overdue else c["status"],
-            "is_recurring": c.get("is_recurring", False)
+            "is_recurring": c.get("is_recurring", False),
+            "media_url": c.get("media_url")
         })
 
     return {
