@@ -2,7 +2,10 @@ import json
 import os
 from pymongo import MongoClient
 
-MONGO_URL = os.getenv("MONGO_URL", "mongodb://mongo:27017")
+MONGO_URL = os.getenv(
+    "MONGO_URL",
+    "mongodb+srv://jrc9921_db_user:Xpg3EjVGFbv3Waeh@work.5foblwa.mongodb.net/?retryWrites=true&w=majority"
+)
 DB_NAME = os.getenv("MONGO_DB_NAME", "main_db")
 
 client = MongoClient(MONGO_URL)
