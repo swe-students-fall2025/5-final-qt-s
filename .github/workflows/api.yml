@@ -51,7 +51,7 @@ jobs:
         done
     
     - name: Run tests with coverage
-      working-directory: api
+    
       env:
         MONGO_URL: mongodb://localhost:27017
         MONGO_DB_NAME: test_db
