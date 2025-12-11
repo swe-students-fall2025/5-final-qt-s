@@ -120,7 +120,7 @@ jobs:
           docker run -d \
             --name api-service \
             --restart unless-stopped \
-            -p 8000:8000 \
+            --network host \
             -e MONGO_URL=${{ secrets.MONGO_URL }} \
             -e MONGO_DB_NAME=${{ secrets.MONGO_DB_NAME }} \
             -e JWT_SECRET=${{ secrets.JWT_SECRET }} \

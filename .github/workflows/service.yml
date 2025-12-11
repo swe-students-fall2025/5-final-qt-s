@@ -119,7 +119,7 @@ jobs:
           docker run -d \
             --name service-layer \
             --restart unless-stopped \
-            -p 8100:8100 \
+            --network host \
             -e MONGO_URL=${{ secrets.MONGO_URL }} \
             -e MONGO_DB_NAME=${{ secrets.MONGO_DB_NAME }} \
             -e PORT=8100 \
